@@ -20,7 +20,7 @@
   --card-solid: #161625;
   --card-border: rgba(255,255,255,0.06);
   --text: #e8e8f0;
-  --text-light: #a8a8c0;
+  --text-light: #b4b4c8;
   --text-muted: #8888a0;
   --border: rgba(255,255,255,0.08);
   --sidebar-bg: linear-gradient(180deg, #12121f 0%, #0f0f1a 100%);
@@ -55,7 +55,7 @@ html.light-theme, html.light-theme body {
   --card-solid: #ffffff;
   --card-border: rgba(0,0,0,0.08);
   --text: #1a1a2e;
-  --text-light: #555566;
+  --text-light: #444455;
   --text-muted: #777788;
   --border: rgba(0,0,0,0.1);
   --sidebar-bg: linear-gradient(180deg, #f0f0f5 0%, #e8e8f0 100%);
@@ -117,17 +117,26 @@ html.light-theme .btn-outline { backdrop-filter: none; -webkit-backdrop-filter: 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   overflow-x: hidden;
   font-size: 15px;
-  line-height: 1.6;
+  font-weight: 450;
+  line-height: 1.55;
+  /* без optimizeLegibility — в Chrome он мылоит кириллицу */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+h1, h2, h3, h4, .stat-card .value, .stat-mini .value {
+  -webkit-font-smoothing: antialiased;
+  text-shadow: none;
+}
+/* плотные основные цвета текста */
+.card, .modal, .crm-table td, .stat-card, .stat-mini {
+  text-shadow: none;
 }
 
 /* ── Шапка ────────────────────────────── */
