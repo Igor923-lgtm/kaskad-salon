@@ -24,10 +24,10 @@
   --text-muted: #8888a0;
   --border: rgba(255,255,255,0.08);
   --sidebar-bg: linear-gradient(180deg, #12121f 0%, #0f0f1a 100%);
-  --sidebar-text: rgba(255,255,255,0.75);
-  --sidebar-text-active: #6C63FF;
+  --sidebar-text: #e8e8f0;
+  --sidebar-text-active: #ffffff;
   --sidebar-border: rgba(255,255,255,0.06);
-  --sidebar-hover: rgba(108,99,255,0.08);
+  --sidebar-hover: rgba(108,99,255,0.12);
   --header-bg: rgba(15,15,26,0.92);
   --glass: blur(8px);
 
@@ -59,10 +59,10 @@ html.light-theme, html.light-theme body {
   --text-muted: #777788;
   --border: rgba(0,0,0,0.1);
   --sidebar-bg: linear-gradient(180deg, #f0f0f5 0%, #e8e8f0 100%);
-  --sidebar-text: #444;
-  --sidebar-text-active: #6C63FF;
+  --sidebar-text: #2a2a35;
+  --sidebar-text-active: #4A42E0;
   --sidebar-border: rgba(0,0,0,0.08);
-  --sidebar-hover: rgba(108,99,255,0.08);
+  --sidebar-hover: rgba(108,99,255,0.12);
   --header-bg: rgba(255,255,255,0.97);
   --glass: blur(6px);
   --shadow: 0 4px 20px rgba(0,0,0,0.08);
@@ -589,7 +589,7 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
-  box-shadow: 4px 0 30px rgba(0,0,0,0.3);
+  box-shadow: 2px 0 12px rgba(0,0,0,0.15);
 }
 .sidebar::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .sidebar .logo {
@@ -606,42 +606,44 @@ body {
   object-fit: cover;
 }
 .sidebar .logo-text {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
-  letter-spacing: 3px;
-  color: #6C63FF;
+  letter-spacing: 0.5px;
+  color: #8B84FF;
 }
 .sidebar .logo-sub {
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 1px;
+  font-size: 11px;
+  color: #a0a0b8;
+  letter-spacing: 0;
+  font-weight: 500;
   margin-top: 2px;
 }
 .sidebar a {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 9px 14px;
   color: var(--sidebar-text);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
   font-weight: 500;
-  transition: var(--transition);
-  border-left: 4px solid transparent;
-  letter-spacing: 0.3px;
+  /* только фон/цвет — текст не «моргает» при hover */
+  transition: background 0.15s ease, border-color 0.15s ease;
+  border-left: 3px solid transparent;
+  letter-spacing: 0;
 }
 .sidebar a:hover {
   background: var(--sidebar-hover);
   color: var(--text);
 }
 .sidebar a.active {
-  background: rgba(108,99,255,0.12);
+  background: rgba(108,99,255,0.18);
   color: var(--sidebar-text-active);
-  border-left-color: var(--sidebar-text-active);
+  border-left-color: #6C63FF;
   font-weight: 700;
 }
 .sidebar a span { min-width: 20px; text-align: center; display: flex; align-items: center; flex-shrink: 0; }
@@ -959,13 +961,17 @@ canvas { max-width: 100%; }
 }
 
 
-/* ── Режим «Ковopкинг» — бирюзовый акцент ─────────────── */
+/* ── Режим «Коворкинг» — бирюзовый акцент ─────────────── */
 .org-coworking {
   --primary: #4ECDC4;
   --primary-dark: #3BB8AF;
   --primary-glow: rgba(78, 205, 196, 0.3);
-  --sidebar-text-active: #4ECDC4;
-  --sidebar-hover: rgba(78, 205, 196, 0.10);
+  --sidebar-text-active: #ffffff;
+  --sidebar-hover: rgba(78, 205, 196, 0.14);
 }
 .org-coworking .logo-sub { color: #4ECDC4; }
-.org-coworking .sidebar a.active { color: #4ECDC4; border-left-color: #4ECDC4; }
+.org-coworking .sidebar a.active {
+  color: #ffffff;
+  background: rgba(78, 205, 196, 0.18);
+  border-left-color: #4ECDC4;
+}
