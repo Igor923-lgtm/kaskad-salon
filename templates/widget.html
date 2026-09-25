@@ -225,7 +225,7 @@ function selectGender(gender) {
   selGender = gender;
 
   const filtered = services.filter(s => {
-    const title = s.section.toLowerCase();
+    const title = (s.section || s.category_title || '').toLowerCase();
     if (gender === 'm') {
       return title.includes('мужск') || title.includes('стрижка') || title.includes('окрашив') || title.includes('барбер') || title.includes('массаж') || title.includes('маникюр') || title.includes('педикюр') || title.includes('косметолог');
     } else {
@@ -235,7 +235,7 @@ function selectGender(gender) {
 
   const byBlock = {};
   filtered.forEach(s => {
-    const block = getBlockName(s.section);
+    const block = getBlockName(s.section || s.category_title || 'Другое');
     if (!byBlock[block]) byBlock[block] = [];
     byBlock[block].push(s);
   });
