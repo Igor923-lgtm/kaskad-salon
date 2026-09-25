@@ -1387,8 +1387,14 @@ async def list_bookings(
         q = "SELECT * FROM bookings WHERE 1=1"
         p = []
         if org == "beauty":
-            # в салоне не показываем блоки ковopкинга (та же логика, что в мастер-API)
-            q += " AND (booking_type IS NULL OR booking_type != 'coworking')"
+            # старые БД могут не иметь booking_type — не роняем 500
+            try:
+                cur = await db.execute("SELECT 1 FROM pragma_table_info('bookings') WHERE name='booking_type'")
+                has_bt = await cur.fetchone() is not None
+            except Exception:
+                has_bt = True
+            if has_bt:
+                q += " AND (booking_type IS NULL OR booking_type != 'coworking')"
         if date:
             q += " AND date = ?"
             p.append(date)
