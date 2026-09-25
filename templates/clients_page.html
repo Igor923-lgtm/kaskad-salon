@@ -333,19 +333,23 @@ async function showDetail(tgId) {
     const dt = c.updated_at ? new Date(c.updated_at.replace(' ','T')).toLocaleDateString('ru-RU') : '—';
 
     let html = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;font-size:13px">
-        <div><span style="color:var(--text-light)">Телефон:</span> ${esc(c.phone || '—')}</div>
-        <div><span style="color:var(--text-light)">ID в Telegram:</span> ${c.telegram_id}</div>
-        <div><span style="color:var(--text-light)">Тип:</span> ${badge}</div>
-        <div><span style="color:var(--text-light)">Обновлён:</span> ${dt}</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin-bottom:16px;font-size:14px;line-height:1.45">
+        <div style="color:var(--text-muted);font-weight:500">Телефон</div>
+        <div style="font-weight:600;color:var(--text)">${esc(c.phone || '—')}</div>
+        <div style="color:var(--text-muted);font-weight:500">ID в Telegram</div>
+        <div style="font-weight:600;color:var(--text)">${c.telegram_id}</div>
+        <div style="color:var(--text-muted);font-weight:500">Тип</div>
+        <div>${badge}</div>
+        <div style="color:var(--text-muted);font-weight:500">Обновлён</div>
+        <div style="font-weight:600;color:var(--text)">${dt}</div>
       </div>
-      <h4 style="margin-bottom:8px;font-size:14px">История визитов</h4>
+      <h4 style="margin:0 0 8px;font-size:15px;font-weight:700;color:var(--text)">История визитов</h4>
     `;
 
     const histResp = await fetch('/api/clients/' + tgId + '/history');
     const history = await histResp.json();
     if (!history.length) {
-      html += '<div style="color:var(--text-light);font-size:13px">Нет визитов</div>';
+      html += '<div style="color:var(--text-muted);font-size:14px;font-weight:500">Нет визитов</div>';
     } else {
       html += `<table class="crm-table" style="font-size:13px"><thead><tr><th>Дата</th><th>Время</th><th>Мастер</th><th>Услуга</th><th>Статус</th></tr></thead><tbody>`;
       history.forEach(b => {

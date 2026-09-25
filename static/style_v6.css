@@ -92,7 +92,9 @@ html.light-theme .schedule-table .time-col:hover { background: #f0f0f0; }
 html.light-theme .schedule-table .time-col.empty:hover { background: #e8f5e9; }
 html.light-theme .crm-table th { background: #f8f9fa; color: #666; }
 html.light-theme .crm-table tr:hover { background: #f8f9fa; }
-html.light-theme .modal { background: #fff; }
+html.light-theme .modal { background: #fff; color: #1a1a2e; }
+html.light-theme .modal-body { color: #1a1a2e; }
+html.light-theme .client-detail { background: #f3f4f6; color: #1a1a2e; }
 html.light-theme .modal-header { border-bottom-color: #e0e0e0; }
 html.light-theme .modal-footer { border-top-color: #e0e0e0; }
 html.light-theme .stat-mini { background: #fff; border-color: #e0e0e0; }
@@ -361,7 +363,7 @@ body {
   max-height: 90vh;
   overflow-y: auto;
   overflow-x: hidden;
-  animation: slideUp 0.3s ease;
+  animation: fadeIn 0.15s ease;
 }
 .modal-header {
   display: flex;
@@ -370,8 +372,14 @@ body {
   padding: 20px 24px;
   border-bottom: 1px solid var(--border);
 }
-.modal-header h2 { font-size: 18px; font-weight: 700; }
-.modal-body { padding: 24px; }
+.modal-header h2 { font-size: 18px; font-weight: 700; color: var(--text); }
+.modal-body {
+  padding: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
 .modal-footer {
   display: flex;
   gap: 10px;
@@ -838,7 +846,7 @@ canvas { max-width: 100%; }
 /* ── Клиенты (доп. стили) ────────────── */
 .client-row { cursor: pointer; transition: var(--transition); }
 .client-row:hover { background: rgba(108,99,255,0.06); }
-.client-detail { padding: 16px 24px; background: rgba(255,255,255,0.02); border-radius: var(--radius-sm); margin: 8px 0; }
+.client-detail { padding: 16px 24px; background: rgba(255,255,255,0.04); border-radius: var(--radius-sm); margin: 8px 0; }
 
 /* ── Промо-баннер ─────────────────────── */
 .promo-banner {
