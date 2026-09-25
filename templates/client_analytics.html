@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Аналитика клиентов — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+<div class="header">
+  <h1>Аналитика клиентов</h1>
+</div>
+
+<div style="padding:16px">
+  <h2 style="margin:0 0 16px">📊 Аналитика клиентов</h2>
+
+  <!-- Выбор месяца -->
+  <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <label style="font-size:14px;color:var(--text-light)">Месяц:</label>
+    <select id="monthSelect" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--card);color:var(--text)">
+    </select>
+    <span style="flex:1"></span>
+    <a class="btn btn-outline btn-sm" id="kpiExport" href="/api/analytics/kpi/export">⬇ CSV KPI</a>
+  </div>
+
+  <!-- KPI -->
+  <div class="card" style="margin-bottom:16px">
+    <h3 style="margin:0 0 12px">🎯 KPI за период</h3>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:13px;color:var(--text-light)">С</label>
+      <input type="date" id="kpiFrom" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text)">
+      <label style="font-size:13px;color:var(--text-light)">по</label>
+      <input type="date" id="kpiTo" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text)">
+      <button class="btn btn-primary btn-sm" onclick="loadKpi()">Показать</button>
+    </div>
+    <div class="stats-grid" id="kpiGrid"></div>
+    <div id="kpiLoad" style="margin-top:12px;overflow-x:auto"></div>
+  </div>
+
+  <!-- Карточки статистики -->
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- Конверсия лид→клиент -->
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin:0 0 12px">📈 Конверсия лид→клиент</h3>
+    <div id="conversion"></div>
+  </div>
+
+  <!-- Популярные слоты -->
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin:0 0 12px">⏰ Популярные слоты</h3>
+    <div id="slots" style="overflow-x:auto"></div>
+  </div>
+
+  <!-- Прогноз загрузки -->
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin:0 0 12px">📅 Прогноз на 2 недели</h3>
+    <div id="forecast" style="overflow-x:auto"></div>
+  </div>
+
+  <!-- Топ услуги -->
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin:0 0 12px">🏆 Топ услуги</h3>
+    <div id="topServices"></div>
+  </div>
+
+  <!-- Потерянные клиенты -->
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin:0 0 12px">🔍 Потерянные клиенты (60+ дней)</h3>
+    <div id="lostClients"></div>
+  </div>
+
+</div>
+
+</div><!-- /main-content -->
+
+<script>
+async function loadStats() {
+  try {
+    const month = document.getElementById('monthSelect').value;
+    const url = month ? `/api/clients/stats?month=${month}` : '/api/clients/stats';
+    const r = await fetch(url);
+    const data = await r.json();
+
+    const grid = document.getElementById('statsGrid');
+    grid.innerHTML = `
+      <div class="stat-card">
+        <div style="font-size:24px;font-weight:700">${data.total}</div>
+        <div style="font-size:12px;color:var(--text-light)">Всего клиентов</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:24px;font-weight:700;color:var(--primary)">${data.new_this_month}</div>
+        <div style="font-size:12px;color:var(--text-light)">Новых за месяц</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:24px;font-weight:700;color:var(--danger)">${data.lost_60_days}</div>
+        <div style="font-size:12px;color:var(--text-light)">Потерянных (60+ дн)</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:24px;font-weight:700;color:var(--primary)">${data.regular_3plus}</div>
+        <div style="font-size:12px;color:var(--text-light)">Постоянных (3+ визита)</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:24px;font-weight:700">${data.avg_visits}</div>
+        <div style="font-size:12px;color:var(--text-light)">Среднее визитов</div>
+      </div>
+    `;
+
+    // Топ услуги
+    const topDiv = document.getElementById('topServices');
+    if (data.top_services && data.top_services.length > 0) {
+      const maxCount = data.top_services[0].count;
+      topDiv.innerHTML = data.top_services.map(s => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="min-width:120px;font-size:13px">${s.name}</div>
+          <div style="flex:1;background:var(--bg);border-radius:4px;height:20px">
+            <div style="background:var(--primary);height:100%;border-radius:4px;width:${(s.count/maxCount*100)}%"></div>
+          </div>
+          <div style="min-width:30px;text-align:right;font-size:13px;font-weight:600">${s.count}</div>
+        </div>
+      `).join('');
+    } else {
+      topDiv.innerHTML = '<div style="color:var(--text-light);font-size:13px">Нет данных</div>';
+    }
+  } catch (e) {
+    console.error('Error loading stats:', e);
+  }
+}
+
+async function loadLostClients() {
+  try {
+    const r = await fetch('/api/clients/lost?days=60');
+    const data = await r.json();
+    const div = document.getElementById('lostClients');
+
+    if (data.length === 0) {
+      div.innerHTML = '<div style="color:var(--text-light);font-size:13px">Потерянных клиентов нет!</div>';
+      return;
+    }
+
+    div.innerHTML = `
+      <div style="font-size:13px;margin-bottom:8px;color:var(--text-light)">Клиенты, которые не были 60+ дней: ${data.length}</div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--border)">
+          <th style="text-align:left;padding:8px 4px">Имя</th>
+          <th style="text-align:left;padding:8px 4px">Телефон</th>
+          <th style="text-align:left;padding:8px 4px">Последний визит</th>
+        </tr>
+        ${data.slice(0, 20).map(c => `
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 4px">${c.name || '—'}</td>
+            <td style="padding:8px 4px">${c.phone || '—'}</td>
+            <td style="padding:8px 4px">${c.last_visit || 'нет визитов'}</td>
+          </tr>
+        `).join('')}
+      </table>
+    `;
+  } catch (e) {
+    console.error('Error loading lost clients:', e);
+  }
+}
+
+loadLostClients();
+loadConversion();
+loadSlots();
+loadForecast();
+initKpiDates();
+loadKpi();
+
+function initKpiDates() {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  const fmt = d => d.toISOString().slice(0, 10);
+  document.getElementById('kpiFrom').value = fmt(from);
+  document.getElementById('kpiTo').value = fmt(to);
+}
+
+async function loadKpi() {
+  try {
+    const from = document.getElementById('kpiFrom').value;
+    const to = document.getElementById('kpiTo').value;
+    const url = `/api/analytics/kpi?from_date=${from}&to_date=${to}`;
+    document.getElementById('kpiExport').href = `/api/analytics/kpi/export?from_date=${from}&to_date=${to}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const grid = document.getElementById('kpiGrid');
+    grid.innerHTML = `
+      <div class="stat-card"><div style="font-size:24px;font-weight:700">${d.utilization}%</div><div style="font-size:12px;color:var(--text-light)">Загрузка</div></div>
+      <div class="stat-card"><div style="font-size:24px;font-weight:700">${d.total_bookings}</div><div style="font-size:12px;color:var(--text-light)">Записей</div></div>
+      <div class="stat-card"><div style="font-size:24px;font-weight:700;color:var(--danger)">${d.cancel_rate}%</div><div style="font-size:12px;color:var(--text-light)">Отмены</div></div>
+      <div class="stat-card"><div style="font-size:24px;font-weight:700;color:var(--danger)">${d.no_show_rate}%</div><div style="font-size:12px;color:var(--text-light)">Не пришли</div></div>
+      <div class="stat-card"><div style="font-size:24px;font-weight:700;color:var(--primary)">${d.retention_rate}%</div><div style="font-size:12px;color:var(--text-light)">Возвращаются (2+)</div></div>
+      <div class="stat-card"><div style="font-size:24px;font-weight:700">${d.revenue}</div><div style="font-size:12px;color:var(--text-light)">Выручка</div></div>
+    `;
+    const load = d.load_by_master || [];
+    if (load.length) {
+      const max = load[0].slots || 1;
+      document.getElementById('kpiLoad').innerHTML = `
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Загрузка по мастерам (слоты)</div>
+        ${load.map(m => `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="min-width:100px;font-size:13px">${m.master}</div>
+            <div style="flex:1;background:var(--bg);border-radius:4px;height:16px">
+              <div style="background:var(--primary);height:100%;border-radius:4px;width:${(m.slots/max*100)}%"></div>
+            </div>
+            <div style="min-width:30px;text-align:right;font-size:13px">${m.slots}</div>
+          </div>
+        `).join('')}
+      `;
+    } else {
+      document.getElementById('kpiLoad').innerHTML = '';
+    }
+  } catch (e) {
+    console.error('KPI load error', e);
+  }
+}
+
+async function loadConversion() {
+  try {
+    const r = await fetch('/api/clients/conversion');
+    const data = await r.json();
+    const div = document.getElementById('conversion');
+    div.innerHTML = `
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div style="text-align:center;flex:1;min-width:100px">
+          <div style="font-size:28px;font-weight:700;color:var(--text-light)">${data.leads}</div>
+          <div style="font-size:12px;color:var(--text-light)">Лидов</div>
+        </div>
+        <div style="text-align:center;flex:1;min-width:100px">
+          <div style="font-size:28px;font-weight:700;color:var(--primary)">${data.clients}</div>
+          <div style="font-size:12px;color:var(--text-light)">Клиентов</div>
+        </div>
+        <div style="text-align:center;flex:1;min-width:100px">
+          <div style="font-size:28px;font-weight:700;color:var(--accent)">${data.conversion_rate}%</div>
+          <div style="font-size:12px;color:var(--text-light)">Конверсия</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${data.conversion_rate}%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:4px;transition:width 0.5s"></div>
+      </div>
+    `;
+  } catch(e) { console.error(e); }
+}
+
+async function loadSlots() {
+  try {
+    const r = await fetch('/api/analytics/slots');
+    const data = await r.json();
+    const div = document.getElementById('slots');
+    if (!data.length) { div.innerHTML = '<div style="color:var(--text-light);font-size:13px">Нет данных</div>'; return; }
+    const days = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+    const times = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+    const maxCnt = Math.max(...data.map(d => d.count));
+    let html = '<table style="border-collapse:collapse;font-size:12px;width:100%"><tr><th style="padding:4px;color:var(--text-light)"></th>';
+    times.forEach(t => html += `<th style="padding:4px;color:var(--text-light)">${t}</th>`);
+    html += '</tr>';
+    for (let d = 1; d <= 6; d++) {
+      html += `<tr><td style="padding:4px;color:var(--text-light);font-weight:600">${days[d]}</td>`;
+      times.forEach(t => {
+        const slot = data.find(s => s.day === d && s.time === t);
+        const cnt = slot ? slot.count : 0;
+        const opacity = maxCnt > 0 ? (cnt / maxCnt) : 0;
+        const bg = cnt > 0 ? `rgba(108,99,255,${0.1 + opacity * 0.8})` : 'rgba(255,255,255,0.02)';
+        html += `<td style="padding:6px;text-align:center;background:${bg};border-radius:4px;min-width:40px">${cnt || ''}</td>`;
+      });
+      html += '</tr>';
+    }
+    html += '</table>';
+    div.innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+async function loadForecast() {
+  try {
+    const r = await fetch('/api/analytics/forecast');
+    const data = await r.json();
+    const div = document.getElementById('forecast');
+    if (!data.length) { div.innerHTML = '<div style="color:var(--text-light);font-size:13px">Нет данных</div>'; return; }
+    let html = '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    data.forEach(d => {
+      const color = d.load_percent > 80 ? '#FF6B6B' : d.load_percent > 40 ? '#FFD700' : '#2ECC71';
+      html += `<div style="flex:1;min-width:60px;text-align:center;padding:8px 4px;background:${color}22;border:1px solid ${color}44;border-radius:8px">
+        <div style="font-size:11px;color:var(--text-light)">${d.day_name}</div>
+        <div style="font-size:13px;font-weight:600;color:${color}">${d.date.slice(5)}</div>
+        <div style="font-size:10px;color:var(--text-light)">${d.bookings} записей</div>
+      </div>`;
+    });
+    html += '</div>';
+    div.innerHTML = html;
+  } catch(e) { console.error(e); }
+}
+
+// Инициализация: заполнить список месяцев
+(function() {
+  const sel = document.getElementById('monthSelect');
+  const now = new Date();
+  const months = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = `${months[d.getMonth()]} ${d.getFullYear()}`;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', loadStats);
+  loadStats();
+})();
+</script>
+
+</div><!-- /main-content -->
+</body>
+</html>

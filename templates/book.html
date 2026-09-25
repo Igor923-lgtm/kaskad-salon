@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#6C63FF">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/icon-192.png?v=2">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">
+  <meta property="og:image" content="/static/icon-512.png">
+  <meta name="msapplication-TileImage" content="/static/icon-192.png">
+  <title>Онлайн-запись — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+</head>
+<body>
+
+<div class="wizard">
+  <h1 style="text-align:center;margin-bottom:20px">{{ salon_name }}</h1>
+
+  <div class="wizard-steps">
+    <div class="wizard-step active" id="ws1">Пол</div>
+    <div class="wizard-step" id="ws2">Услуга</div>
+    <div class="wizard-step" id="ws3">Мастер</div>
+    <div class="wizard-step" id="ws4">Время</div>
+    <div class="wizard-step" id="ws5">Готово</div>
+  </div>
+
+  <!-- Шаг 1: Выбор пола -->
+  <div id="step1">
+    <h2 style="margin-bottom:16px">Кому записываемся?</h2>
+    <div class="option-list">
+      <div class="option-item" onclick="selectGender('f')">
+        <div class="option-title">👩 Женщине</div>
+      </div>
+      <div class="option-item" onclick="selectGender('m')">
+        <div class="option-title">👨 Мужчине</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Шаг 2: Услуга -->
+  <div id="step2" style="display:none">
+    <h2 style="margin-bottom:16px">Выберите услугу</h2>
+    <div class="option-list" id="serviceList"></div>
+  </div>
+
+  <!-- Шаг 3: Мастер -->
+  <div id="step3" style="display:none">
+    <h2 style="margin-bottom:16px">Выберите мастера</h2>
+    <div class="option-list" id="masterList"></div>
+  </div>
+
+  <!-- Шаг 4: Дата и время -->
+  <div id="step4" style="display:none">
+    <h2 style="margin-bottom:16px">Выберите дату и время</h2>
+    <div class="form-group">
+      <input type="date" id="bookDate" onchange="loadSlots()">
+    </div>
+    <div class="time-grid" id="timeGrid"></div>
+    <div id="selectedTime" style="margin-top:16px;text-align:center;font-weight:600;color:var(--primary);display:none">
+      Выбрано: <span id="selectedTimeText"></span>
+    </div>
+  </div>
+
+  <!-- Шаг 5: Подтверждение -->
+  <div id="step5" style="display:none">
+    <h2 style="margin-bottom:16px">Ваши данные</h2>
+    <div class="form-group"><label>Имя</label><input id="bookName" placeholder="Ваше имя"></div>
+    <div class="form-group"><label>Телефон</label><input id="bookPhone" type="tel" placeholder="+375..."></div>
+    <div class="form-group"><label>Промокод (необязательно)</label><input id="bookPromo" placeholder="СКИДКА10"></div>
+    <div class="card" style="margin-bottom:16px">
+      <p><strong>Услуга:</strong> <span id="confirmService"></span></p>
+      <p><strong>Мастер:</strong> <span id="confirmMaster"></span></p>
+      <p><strong>Дата:</strong> <span id="confirmDate"></span></p>
+      <p><strong>Время:</strong> <span id="confirmTime"></span></p>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="submitBooking()">Записаться</button>
+  </div>
+
+  <!-- Готово -->
+  <div id="step6" style="display:none;text-align:center">
+    <div style="font-size:64px;margin:20px 0">✅</div>
+    <h2>Вы записаны!</h2>
+    <p style="color:var(--text-light);margin:8px 0" id="doneText"></p>
+    <p style="color:var(--text-light);font-size:13px">Мы свяжемся с вами для подтверждения</p>
+  </div>
+
+  <div style="margin-top:16px" id="backBtnWrap" style="display:none">
+    <button class="btn btn-outline" style="width:100%" id="backBtn" onclick="goBack()">← Назад</button>
+  </div>
+</div>
+
+<!-- Навигация -->
+<div style="position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0;z-index:100">
+  <a href="/book" style="text-align:center;text-decoration:none;color:var(--primary);font-size:12px;font-weight:600">📅<br>Запись</a>
+  <a href="/schedule" style="text-align:center;text-decoration:none;color:var(--text-light);font-size:12px">📊<br>Шахматка</a>
+  <a href="/finance" style="text-align:center;text-decoration:none;color:var(--text-light);font-size:12px">💰<br>Финансы</a>
+</div>
+<div style="height:60px"></div>
+
+<script>
+let step = 1, services = [], masters = [];
+let selGender = null, selService = null, selMaster = null, selDate = null, selTime = null;
+
+async function init() {
+  [services, masters] = await Promise.all([
+    fetch('/api/services').then(r => r.json()),
+    fetch('/api/masters').then(r => r.json()),
+  ]);
+
+  document.getElementById('bookDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('bookDate').min = new Date().toISOString().split('T')[0];
+}
+
+function setStep(n) {
+  step = n;
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById(`step${i}`);
+    if (el) el.style.display = i === n ? '' : 'none';
+    const ws = document.getElementById(`ws${i}`);
+    if (ws) { ws.classList.toggle('active', i === n); ws.classList.toggle('done', i < n); }
+  }
+  document.getElementById('backBtnWrap').style.display = (n > 1 && n < 6) ? '' : 'none';
+}
+
+function goBack() { if (step > 1) setStep(step - 1); }
+
+// Маппинг секций в блоки
+const BLOCK_MAP = {
+  'стрижка': '💇 Стрижка',
+  'окрашив': '🎨 Окрашивание',
+  'мелиров': '🎨 Окрашивание',
+  'блондир': '🎨 Окрашивание',
+  'тониров': '🎨 Окрашивание',
+  'контуринг': '🎨 Окрашивание',
+  'смывка': '🎨 Окрашивание',
+  'укладк': '💆 Укладка',
+  'причёск': '💇‍♀️ Причёска',
+  'прическ': '💇‍♀️ Причёска',
+  'косичк': '💇‍♀️ Причёска',
+  'гофре': '💇‍♀️ Причёска',
+  'маникюр': '💅 Маникюр',
+  'педикюр': '🦶 Педикюр',
+  'массаж': '💆 Массаж',
+  'макияж': '💄 Макияж',
+  'брови': '👁 Брови и ресницы',
+  'ресниц': '👁 Брови и ресницы',
+  'ламинир': '👁 Брови и ресницы',
+  'тридинг': '👁 Брови и ресницы',
+  'косметолог': '🧖 Косметология',
+  'уходов': '🧖 Косметология',
+  'чистк': '🧖 Косметология',
+  'пилинг': '🧖 Косметология',
+  'мезотерап': '🧖 Косметология',
+  'карбокс': '🧖 Косметология',
+  'перманент': '💋 Перманентный макияж',
+  'реконструкц': '✨ Реконструкция волос',
+  'кератин': '✨ Реконструкция волос',
+  'наращив': '✨ Наращивание волос',
+  'депиляц': '🪒 Депиляция',
+  'шугаринг': '🪒 Депиляция',
+};
+
+function getBlockName(sectionTitle) {
+  const lower = sectionTitle.toLowerCase();
+  for (const [keyword, block] of Object.entries(BLOCK_MAP)) {
+    if (lower.includes(keyword)) return block;
+  }
+  return sectionTitle; // fallback — показываем как есть
+}
+
+// Шаг 1: Выбор пола
+function selectGender(gender) {
+  selGender = gender;
+
+  const filtered = services.filter(s => {
+    const title = s.section.toLowerCase();
+    if (gender === 'm') {
+      return title.includes('мужск') || title.includes('стрижка') || title.includes('окрашив') || title.includes('барбер') || title.includes('массаж') || title.includes('маникюр') || title.includes('педикюр') || title.includes('косметолог');
+    } else {
+      return !title.includes('мужск') && !title.includes('барбер');
+    }
+  });
+
+  // Группируем по БЛОКАМ
+  const byBlock = {};
+  filtered.forEach(s => {
+    const block = getBlockName(s.section);
+    if (!byBlock[block]) byBlock[block] = [];
+    byBlock[block].push(s);
+  });
+
+  let html = '';
+  let blockIdx = 0;
+  Object.keys(byBlock).forEach(block => {
+    const id = `block_${blockIdx++}`;
+    html += `<div class="option-item" onclick="toggleBlock('${id}')" style="cursor:pointer;padding:12px 14px">
+      <div class="option-title">${block} <span style="float:right;color:var(--text-light);font-size:12px">${byBlock[block].length} услуг</span></div>
+    </div>`;
+    html += `<div id="${id}" style="display:none">`;
+    byBlock[block].forEach(s => {
+      html += `<div class="option-item svc-multi" data-id="${s.id}" data-name="${s.name.replace(/"/g,'&quot;')}" data-price="${s.price}" data-dur="${s.duration_minutes||0}" onclick="toggleMultiService(this)" style="margin-left:12px;cursor:pointer">
+        <div class="option-title" style="font-size:14px">☐ ${s.name}</div>
+        <div class="option-sub">${s.price} BYN${s.duration_minutes > 0 ? ' · ' + fmtDur(s.duration_minutes) : ''}</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  html += `<div style="padding:12px 14px;border-top:1px solid var(--border);margin-top:8px">
+    <div id="multiSummary" style="font-size:13px;color:var(--text-light);margin-bottom:8px">Выберите одну или несколько услуг</div>
+    <button class="btn btn-primary" style="width:100%" onclick="confirmMultiServices()">Далее: выбрать мастера</button>
+  </div>`;
+  document.getElementById('serviceList').innerHTML = html;
+  selectedMulti = [];
+  setStep(2);
+}
+
+let selectedMulti = [];
+
+function toggleMultiService(el) {
+  const id = el.getAttribute('data-id');
+  const idx = selectedMulti.findIndex(x => String(x.id) === String(id));
+  if (idx >= 0) {
+    selectedMulti.splice(idx, 1);
+    el.querySelector('.option-title').textContent = '☐ ' + el.getAttribute('data-name');
+    el.style.background = '';
+  } else {
+    selectedMulti.push({
+      id,
+      name: el.getAttribute('data-name'),
+      price: el.getAttribute('data-price'),
+      duration_minutes: parseInt(el.getAttribute('data-dur'), 10) || 0,
+    });
+    el.querySelector('.option-title').textContent = '☑ ' + el.getAttribute('data-name');
+    el.style.background = 'rgba(108,99,255,0.12)';
+  }
+  const totalDur = selectedMulti.reduce((a, s) => a + (s.duration_minutes > 0 ? Math.ceil(s.duration_minutes/15)*15 : 15), 0);
+  document.getElementById('multiSummary').textContent = selectedMulti.length
+    ? `Выбрано: ${selectedMulti.length}, ~${fmtDur(totalDur)}`
+    : 'Выберите одну или несколько услуг';
+}
+
+function confirmMultiServices() {
+  if (!selectedMulti.length) { alert('Выберите хотя бы одну услугу'); return; }
+  if (selectedMulti.length === 1) {
+    selectService(selectedMulti[0].name, selectedMulti[0].price, selectedMulti[0].id);
+    return;
+  }
+  // multi: Σ duration, names joined; masters by first service category
+  const totalDur = selectedMulti.reduce((a, s) => a + (s.duration_minutes > 0 ? Math.ceil(s.duration_minutes/15)*15 : 15), 0);
+  selService = {
+    name: selectedMulti.map(s => s.name).join(' + '),
+    price: selectedMulti.map(s => s.price).join(' + '),
+    duration_minutes: totalDur,
+    service_ids: selectedMulti.map(s => s.id),
+  };
+  // masters: union by section of first id (same as selectService section logic)
+  const firstId = String(selectedMulti[0].id);
+  const sectionIdx = parseInt(firstId.split('_')[0]);
+  const filtered = masters.filter(m => {
+    if (m.name === 'АДМИН') return false;
+    if (!m.categories || m.categories.trim() === '') return true;
+    const cats = m.categories.split(',').map(c => parseInt(c.trim())).filter(c => !isNaN(c));
+    return cats.includes(sectionIdx);
+  });
+  let html = '';
+  filtered.forEach(m => {
+    html += `<div class="option-item" onclick="selectMaster('${m.name.replace(/'/g,"\\'")}')">
+      <div class="option-title">${m.name}</div>
+      <div class="option-sub">${m.specialization || 'Мастер'}</div>
+    </div>`;
+  });
+  document.getElementById('masterList').innerHTML = html;
+  setStep(3);
+}
+
+function toggleBlock(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function fmtDur(d) {
+  const mins = d > 0 ? Math.ceil(d / 15) * 15 : 15;
+  if (mins < 60) return mins + ' мин';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h} ч ${m} мин` : `${h} ч`;
+}
+function add15(t, i) {
+  let [h, m] = t.split(':').map(Number);
+  let total = h * 60 + m + i * 15;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+function endOf(t, dur) {
+  const n = (parseInt(dur, 10) || 0) > 0 ? Math.ceil(dur / 15) : 1;
+  return add15(t, n);
+}
+
+// Шаг 2: Выбор услуги
+function selectService(name, price, serviceId) {
+  const svc = services.find(s => String(s.id) === String(serviceId) || s.name === name);
+  selService = { name, price, duration_minutes: svc ? (svc.duration_minutes || 0) : 0, service_ids: null };
+  // keep multi selection if user went back from masters after multi
+  if (selectedMulti.length > 1) {
+    selService.service_ids = selectedMulti.map(s => s.id);
+    selService.duration_minutes = selectedMulti.reduce((a, s) => a + (s.duration_minutes > 0 ? Math.ceil(s.duration_minutes/15)*15 : 15), 0);
+    selService.name = selectedMulti.map(s => s.name).join(' + ');
+    selService.price = selectedMulti.map(s => s.price).join(' + ');
+  }
+
+  // Получаем индекс секции из serviceId (формат "sectionIdx_serviceIdx")
+  const sectionIdx = parseInt(serviceId.split('_')[0]);
+
+  // Фильтруем мастеров: без АДМИН, по категории
+  const filtered = masters.filter(m => {
+    if (m.name === 'АДМИН') return false;
+    // Если у мастера нет категорий — показываем (обратная совместимость)
+    if (!m.categories || m.categories.trim() === '') return true;
+    // Проверяем, есть ли секция в категориях мастера
+    const cats = m.categories.split(',').map(c => parseInt(c.trim())).filter(c => !isNaN(c));
+    return cats.includes(sectionIdx);
+  });
+
+  let html = '';
+  filtered.forEach(m => {
+    html += `<div class="option-item" onclick="selectMaster('${m.name.replace(/'/g,"\\'")}')">
+      <div class="option-title">${m.name}</div>
+      <div class="option-sub">${m.specialization || 'Мастер'}</div>
+    </div>`;
+  });
+  document.getElementById('masterList').innerHTML = html;
+  setStep(3);
+}
+
+// Шаг 3: Выбор мастера
+function selectMaster(name) {
+  selMaster = name;
+  setStep(4);
+  loadSlots();
+}
+
+// Шаг 4: Выбор времени
+async function loadSlots() {
+  selDate = document.getElementById('bookDate').value;
+  if (!selDate || !selMaster) return;
+
+  const dur = selService && selService.duration_minutes ? selService.duration_minutes : 0;
+  const slots = await fetch(`/api/slots?master_name=${encodeURIComponent(selMaster)}&date=${selDate}&duration_minutes=${dur}`).then(r => r.json());
+  const grid = document.getElementById('timeGrid');
+
+  if (!slots.length) {
+    grid.innerHTML = '<p style="color:var(--text-light);grid-column:1/-1;text-align:center">Нет свободных слотов</p>';
+    return;
+  }
+
+  grid.innerHTML = slots.map(s =>
+    s.available
+      ? `<div class="time-slot" onclick="selectTime('${s.time}')">${s.time}</div>`
+      : `<div class="time-slot unavailable">${s.time}</div>`
+  ).join('');
+
+  selTime = null;
+  document.getElementById('selectedTime').style.display = 'none';
+}
+
+function selectTime(time) {
+  selTime = time;
+  document.querySelectorAll('.time-slot').forEach(el => {
+    el.classList.toggle('selected', el.textContent === time && !el.classList.contains('unavailable'));
+  });
+  document.getElementById('selectedTime').style.display = '';
+  document.getElementById('selectedTimeText').textContent = `${selDate} в ${time}`;
+
+  const dur = selService && selService.duration_minutes ? selService.duration_minutes : 0;
+  const timeLabel = dur > 15
+    ? `${time} – ${endOf(time, dur)} (${fmtDur(dur)})`
+    : time;
+  document.getElementById('confirmService').textContent = `${selService.name} (${selService.price} BYN)`;
+  document.getElementById('confirmMaster').textContent = selMaster;
+  document.getElementById('confirmDate').textContent = selDate;
+  document.getElementById('confirmTime').textContent = timeLabel;
+  setStep(5);
+}
+
+// Шаг 5: Отправка
+async function submitBooking() {
+  const name = document.getElementById('bookName').value.trim();
+  const phone = document.getElementById('bookPhone').value.trim();
+  if (!name) { alert('Введите имя'); return; }
+
+  const res = await fetch('/api/bookings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      master_name: selMaster, date: selDate, time: selTime,
+      client_name: name, phone: phone, service_name: selService.name,
+      duration_minutes: selService.duration_minutes || 0,
+      service_ids: selService.service_ids && selService.service_ids.length > 1
+        ? selService.service_ids.map(x => parseInt(x, 10) || x)
+        : undefined,
+      promo_code: (document.getElementById('bookPromo')?.value || '').trim() || undefined,
+    }),
+  });
+
+  if (res.ok) {
+    document.getElementById('doneText').textContent = `${selDate} в ${selTime} к мастеру ${selMaster}`;
+    setStep(6);
+  } else {
+    const err = await res.json();
+    alert(err.detail || 'Ошибка записи');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

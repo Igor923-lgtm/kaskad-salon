@@ -1,0 +1,69 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">
+  <i class="fa-solid fa-bars"></i>
+</button>
+<nav class="sidebar{% if org_type == 'coworking' %} org-coworking{% endif %}" id="sidebar">
+  <div class="logo">
+    <img src="{{ salon_logo }}" alt="{{ salon_name }}">
+    <div>
+      <div class="logo-text" id="logoText" title="{{ salon_name }}">{{ salon_name }}</div>
+      <div class="logo-sub">{{ "КОВОРКИНГ" if org_type == "coworking" else "САЛОН КРАСОТЫ" }}</div>
+    </div>
+  </div>
+  <a href="/dashboard" class="{% if page == 'dashboard' %}active{% endif %}">
+    <span><i class="fa-solid fa-grip"></i></span> Дашборд
+  </a>
+  <a href="/schedule" class="{% if page == 'schedule' %}active{% endif %}">
+    <span><i class="fa-regular fa-calendar-check"></i></span> {{ "Занятость" if org_type == "coworking" else "Шахматка" }}
+  </a>
+  <a href="/bookings" class="{% if page == 'bookings' %}active{% endif %}">
+    <span><i class="fa-solid fa-clipboard-list"></i></span> {{ "Аренды" if org_type == "coworking" else "Записи" }}
+  </a>
+  <a href="/finance" class="{% if page == 'finance' %}active{% endif %}">
+    <span><i class="fa-solid fa-sack-dollar"></i></span> Финансы
+  </a>
+  <a href="/masters" class="{% if page == 'masters' %}active{% endif %}">
+    <span><i class="fa-solid fa-scissors"></i></span> {{ "Пространства" if org_type == "coworking" else "Мастера" }}
+  </a>
+  <a href="/services" class="{% if page == 'services' %}active{% endif %}">
+    <span><i class="fa-solid fa-tags"></i></span> {{ "Тарифы" if org_type == "coworking" else "Услуги" }}
+  </a>
+  <a href="/clients" class="{% if page == 'clients' %}active{% endif %}">
+    <span><i class="fa-solid fa-users"></i></span> {{ "Арендаторы" if org_type == "coworking" else "Клиенты" }}
+  </a>
+  <a href="/analytics" class="{% if page == 'analytics' %}active{% endif %}">
+    <span><i class="fa-solid fa-chart-line"></i></span> Аналитика
+  </a>
+  <div style="padding:8px 14px 2px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#8888a0;">Управление</div>
+  <a href="/bot" class="{% if page == 'bot' %}active{% endif %}">
+    <span><i class="fa-solid fa-robot"></i></span> Бот
+  </a>
+  <a href="/masters-app" class="{% if page == 'masters-app' %}active{% endif %}" title="Мастерское приложение">
+    <span><i class="fa-solid fa-mobile-screen"></i></span> Приложение
+  </a>
+  <a href="/settings" class="{% if page == 'settings' %}active{% endif %}">
+    <span><i class="fa-solid fa-gear"></i></span> Настройки ЦРМ
+  </a>
+  <a href="/users" class="{% if page == 'users' %}active{% endif %}">
+    <span><i class="fa-solid fa-user-gear"></i></span> Пользователи
+  </a>
+  <div class="spacer"></div>
+  <div class="sidebar-footer">
+    <a href="/logout">
+      <span><i class="fa-solid fa-right-from-bracket"></i></span> Выйти
+    </a>
+  </div>
+</nav>
+<script>
+function fitSalonName(el, name) {
+  if (!el) return;
+  var text = (name !== undefined ? name : (el.textContent || '')).trim();
+  el.textContent = text;
+  el.title = text;
+  var n = text.length;
+  var size = n <= 6 ? 28 : n <= 10 ? 22 : n <= 16 ? 17 : n <= 24 ? 14 : 12;
+  el.style.fontSize = size + 'px';
+  el.style.letterSpacing = n > 12 ? '0.02em' : '0.04em';
+}
+fitSalonName(document.getElementById('logoText'));
+</script>

@@ -1,0 +1,22 @@
+{
+  "name": "Хайрос CRM",
+  "short_name": "Хайрос",
+  "description": "Приложение для мастеров салона красоты Хайрос",
+  "start_url": "/master",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/icon-192.png?v=2",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-512.png?v=2",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Пользователи — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+<div class="header">
+  <h1>Пользователи</h1>
+  <button class="btn btn-primary" onclick="showAddUser()">+ Добавить</button>
+</div>
+
+<div style="padding:20px" id="usersList"></div>
+</div>
+
+<!-- Модалка: добавить пользователя -->
+<div class="modal-overlay" id="addUserModal" style="display:none" onclick="if(event.target===this)closeAddUserModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Новый пользователь</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeAddUserModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Имя</label>
+        <input type="text" id="auName" placeholder="Имя">
+      </div>
+      <div class="form-group">
+        <label>Телефон</label>
+        <input type="tel" id="auPhone" placeholder="+375...">
+      </div>
+      <div class="form-group">
+        <label>Роль</label>
+        <select id="auRole">
+          <option value="master_edit">Мастер</option>
+          <option value="director">Администратор</option>
+          <option value="super_admin">Создатель</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddUserModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="submitAddUser()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ROLE_LABELS = {
+  super_admin: 'Создатель',
+  director: 'Администратор',
+  master_edit: 'Мастер',
+};
+const ROLE_OPTIONS = [
+  { value: 'master_edit', label: 'Мастер' },
+  { value: 'director', label: 'Администратор' },
+  { value: 'super_admin', label: 'Создатель' },
+];
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showRoleModal(title, currentRole, callback) {
+  let options = ROLE_OPTIONS.map(r =>
+    `<option value="${r.value}" ${r.value === currentRole ? 'selected' : ''}>${r.label}</option>`
+  ).join('');
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `<div style="background:#161625;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;max-width:320px;width:100%">
+    <div style="font-weight:600;font-size:16px;margin-bottom:16px;color:#e8e8f0">${title}</div>
+    <select id="roleSelect" style="width:100%;padding:10px;border:1px solid rgba(255,255,255,0.08);border-radius:10px;font-size:14px;margin-bottom:16px;background:rgba(255,255,255,0.05);color:#e8e8f0">${options}</select>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="this.closest('div[style*=fixed]').remove()">Отмена</button>
+      <button class="btn btn-primary" id="roleConfirm">OK</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#roleConfirm').onclick = () => {
+    const val = overlay.querySelector('#roleSelect').value;
+    overlay.remove();
+    callback(val);
+  };
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+}
+
+async function loadUsers() {
+  try {
+    const res = await fetch('/api/users');
+    if (!res.ok) throw new Error(res.status);
+    const users = await res.json();
+    let html = '';
+    users.forEach(u => {
+      html += `<div class="card" style="margin-bottom:8px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:15px">${esc(u.name)}</div>
+          <div style="font-size:12px;color:#888">${esc(u.phone || '—')}</div>
+          <div style="font-size:12px;color:#6366f1;margin-top:2px">${ROLE_LABELS[u.role] || u.role}</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="editUser(${u.id},'${esc(u.name)}','${esc(u.phone||'')}','${u.role}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${esc(u.name)}')">🗑</button>
+      </div>`;
+    });
+    document.getElementById('usersList').innerHTML = html || '<div class="card" style="padding:20px;text-align:center;color:#888">Нет пользователей</div>';
+  } catch(e) {
+    document.getElementById('usersList').innerHTML = '<div class="card" style="padding:20px;color:red">Ошибка загрузки</div>';
+  }
+}
+
+function closeAddUserModal() {
+  document.getElementById('addUserModal').style.display = 'none';
+}
+
+function showAddUser() {
+  document.getElementById('auName').value = '';
+  document.getElementById('auPhone').value = '';
+  document.getElementById('auRole').value = 'master_edit';
+  document.getElementById('addUserModal').style.display = 'flex';
+}
+
+async function submitAddUser() {
+  const name = document.getElementById('auName').value.trim();
+  const phone = document.getElementById('auPhone').value.trim();
+  const role = document.getElementById('auRole').value;
+  if (!name) { alert('Введите имя'); return; }
+  if (!phone) { alert('Введите телефон'); return; }
+  try {
+    const r = await fetch('/api/users', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, phone, role }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (d.status === 'ok' || r.ok) {
+      closeAddUserModal();
+      loadUsers();
+    } else {
+      alert(d.detail || 'Ошибка');
+    }
+  } catch (e) {
+    alert('Ошибка сети');
+  }
+}
+
+function editUser(id, name, phone, role) {
+  showRoleModal(`Роль для ${name}`, role, (newRole) => {
+    if (newRole === role) return;
+    fetch(`/api/users/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ role: newRole }),
+    }).then(r => r.json()).then(d => {
+      if (d.status === 'ok') loadUsers();
+      else alert(d.detail || 'Ошибка');
+    });
+  });
+}
+
+function deleteUser(id, name) {
+  if (!confirm(`Деактивировать ${name}?`)) return;
+  fetch(`/api/users/${id}`, { method: 'DELETE' })
+    .then(r => r.json()).then(d => {
+      if (d.status === 'ok') loadUsers();
+      else alert(d.detail || 'Ошибка');
+    });
+}
+
+loadUsers();
+</script>
+</body>
+</html>

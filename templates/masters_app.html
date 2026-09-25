@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ru" >
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Мастерское приложение — {{ salon_name }} CRM</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f1a; color: #e8e8f0; }
+    .main-content { padding: 20px 20px 40px; max-width: 900px; }
+    h1 { font-size: 24px; margin-bottom: 16px; background: linear-gradient(135deg, #6C63FF, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; }
+    h2 { font-size: 17px; margin-bottom: 12px; }
+    .card { background: rgba(22,22,37,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 12px; }
+    .setting:last-child { border-bottom: none; }
+    .setting-label { font-size: 14px; }
+    .setting-desc { font-size: 12px; color: #8888a0; margin-top: 2px; }
+    .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.2); border-radius: 13px; transition: 0.3s; }
+    .slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: #e8e8f0; border-radius: 50%; transition: 0.3s; }
+    .toggle input:checked + .slider { background: linear-gradient(135deg, #6C63FF, #a855f7); border-color: transparent; }
+    .toggle input:checked + .slider:before { background: #fff; }
+    .toggle input:checked + .slider:before { transform: translateX(22px); }
+    .btn { display: inline-block; padding: 8px 16px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; }
+    .btn-danger { background: rgba(255,60,60,0.85); color: #fff; }
+    .btn-ghost { background: rgba(255,255,255,0.06); color: #e8e8f0; border: 1px solid rgba(255,255,255,0.1); }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th, .table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .table th { color: #8888a0; font-weight: 500; font-size: 11px; text-transform: uppercase; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: rgba(108,99,255,0.2); color: #a8b0ff; }
+    .badge.green { background: rgba(46,204,113,0.15); color: #2ECC71; }
+    .saved { position: fixed; bottom: 20px; right: 20px; background: #2ECC71; color: #fff; padding: 12px 24px; border-radius: 10px; display: none; font-size: 14px; z-index: 100; }
+    .hint { font-size: 12px; color: #8888a0; margin-top: 6px; }
+    .links a { display: inline-block; margin: 4px 8px 4px 0; padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,0.05); color: #a8b0ff; text-decoration: none; font-size: 13px; border: 1px solid rgba(255,255,255,0.08); }
+    select.mini { padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #e8e8f0; font-size: 13px; }
+  </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+<div class="main-content">
+  <h1>📱 Мастерское приложение</h1>
+
+  <!-- Ссылки -->
+  <div class="card">
+    <h2>Ссылки</h2>
+    <div class="links">
+      <a href="/master" target="_blank">Вход мастера (/master)</a>
+      <a href="/master/dashboard" target="_blank">Панель (/master/dashboard)</a>
+    </div>
+    <div class="hint">Мастера входят по телефону + код из Telegram. Здесь — глобальные настройки входа и сессий.</div>
+  </div>
+
+  <!-- Вход -->
+  <div class="card">
+    <h2>Вход</h2>
+    <div class="setting">
+      <div>
+        <div class="setting-label">Разрешить вход в приложение</div>
+        <div class="setting-desc">Выкл = все мастера получают 403 при запросе кода. Существующие сессии продолжают работать до отзыва.</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="loginEnabled" checked onchange="toggleLogin()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Сессии -->
+  <div class="card">
+    <h2>Активные сессии</h2>
+    <div style="margin-bottom:10px;">
+      <button class="btn btn-danger" onclick="revokeAll()">Отозвать все сессии</button>
+      <button class="btn btn-ghost" onclick="loadSessions()">Обновить</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table" id="sessionsTable">
+        <thead>
+          <tr><th>Мастер</th><th>Роль</th><th>ID в Telegram</th><th>Действует до</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="hint">Отзыв немедленно выкидывает мастера из приложения при следующем запросе.</div>
+  </div>
+
+  <!-- Мастера -->
+  <div class="card">
+    <h2>Мастера</h2>
+    <div style="overflow-x:auto;">
+      <table class="table" id="mastersTable">
+        <thead>
+          <tr><th>Имя</th><th>Вход</th><th>Права</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="saved" id="saved">✓ Сохранено</div>
+
+<script>
+function showSaved() {
+  var el = document.getElementById('saved');
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 2000);
+}
+
+async function api(url, opts) {
+  opts = opts || {};
+  opts.credentials = 'same-origin';
+  if (opts.body && !(opts.body instanceof FormData) && typeof opts.body === 'object') {
+    opts.headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+    opts.body = JSON.stringify(opts.body);
+  }
+  var resp = await fetch(url, opts);
+  if (!resp.ok) {
+    var err = await resp.json().catch(function() { return {}; });
+    throw new Error(err.detail || ('Ошибка ' + resp.status));
+  }
+  return resp.json();
+}
+
+async function loadLogin() {
+  try {
+    var d = await api('/api/masters/app-status');
+    document.getElementById('loginEnabled').checked = !!d.login_enabled;
+  } catch (e) {}
+}
+
+async function toggleLogin() {
+  var on = document.getElementById('loginEnabled').checked;
+  try {
+    await api('/api/masters/0/login', { method: 'PUT', body: { enabled: on } });
+    showSaved();
+  } catch (e) {
+    alert(e.message);
+    document.getElementById('loginEnabled').checked = !on;
+  }
+}
+
+async function loadSessions() {
+  try {
+    var d = await api('/api/masters/sessions');
+    var tb = document.querySelector('#sessionsTable tbody');
+    if (!d.sessions.length) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:#8888a0">Нет активных сессий</td></tr>';
+      return;
+    }
+    tb.innerHTML = d.sessions.map(function(s, i) {
+      return '<tr>' +
+        '<td>' + esc(s.master_name || '—') + '</td>' +
+        '<td><span class="badge">' + esc(s.role || 'master_edit') + '</span></td>' +
+        '<td>' + esc(s.telegram_id || '—') + '</td>' +
+        '<td>' + esc(s.expires || '—') + '</td>' +
+        '<td><button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="revokeOne(' + i + ')">Отозвать</button></td>' +
+      '</tr>';
+    }).join('');
+    window._sessions = d.sessions;
+  } catch (e) { alert(e.message); }
+}
+
+async function revokeOne(i) {
+  var s = (window._sessions || [])[i];
+  if (!s || !s.token) {
+    alert('Сессия не найдена');
+    return;
+  }
+  if (!confirm('Отозвать сессию «' + (s.master_name || '') + '»?')) return;
+  try {
+    await api('/api/masters/sessions/' + encodeURIComponent(s.token), { method: 'DELETE' });
+    showSaved();
+    loadSessions();
+  } catch (e) { alert(e.message); }
+}
+
+async function revokeAll() {
+  if (!confirm('Отозвать ВСЕ сессии мастеров? Все будут разлогинены.')) return;
+  try {
+    await api('/api/masters/sessions/revoke-all', { method: 'POST' });
+    showSaved();
+    loadSessions();
+  } catch (e) { alert(e.message); }
+}
+
+async function loadMasters() {
+  try {
+    var masters = await api('/api/masters');
+    var tb = document.querySelector('#mastersTable tbody');
+    var rows = await Promise.all((masters || []).map(async function(m) {
+      var perms = {};
+      try { perms = await api('/api/masters/permissions/' + m.id); } catch (e) {}
+      var active = m.is_active !== 0;
+      return '<tr data-id="' + m.id + '">' +
+        '<td>' + esc(m.name) + '</td>' +
+        '<td><label class="toggle"><input type="checkbox"' + (active ? ' checked' : '') +
+          ' onchange="toggleMaster(' + m.id + ', this.checked)"><span class="slider"></span></label></td>' +
+        '<td><select class="mini" onchange="savePermQuick(' + m.id + ', this.value)">' +
+          ['own', 'all', 'none'].map(function(v) {
+            return '<option value="' + v + '"' + (perms.view_clients === v ? ' selected' : '') + '>' +
+              (v === 'own' ? 'Только свои' : v === 'all' ? 'Все' : 'Нет доступа') + '</option>';
+          }).join('') +
+        '</select></td>' +
+      '</tr>';
+    }));
+    tb.innerHTML = rows.join('') || '<tr><td colspan="3" style="color:#8888a0">Нет мастеров</td></tr>';
+  } catch (e) { alert(e.message); }
+}
+
+async function toggleMaster(id, enabled) {
+  try {
+    await api('/api/masters/' + id + '/login', { method: 'PUT', body: { enabled: enabled } });
+    showSaved();
+  } catch (e) { alert(e.message); }
+}
+
+async function savePermQuick(id, view) {
+  try {
+    var perms = await api('/api/masters/permissions/' + id);
+    perms.view_clients = view;
+    await api('/api/masters/permissions/' + id, { method: 'PUT', body: perms });
+    showSaved();
+  } catch (e) { alert(e.message); }
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+}
+
+loadLogin();
+loadSessions();
+loadMasters();
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.env.save
+# Contains SSH password — never commit
+deploy_settings.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Databases (backed up separately)
+*.db
+*.db.bak*
+*.db-journal
+
+# Virtual environments
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups / temp artifacts
+backups/
+bot_cache.db.bak.*
+*.bak-*
+polling_offset
+.polling_offset
+tmp_*.py
+*.log
+
+# MiMoCode / local
+.mimocode/
+.playwright-cli/
+
+# QA bulk (reports stay; screenshots/runs ignored)
+qa_ux/run_*/
+qa_ux/hairos/
+qa_ux/kaskad/
+
+# Large media (re-upload to server; not in VCS)
+works_photos/
+promo/video/

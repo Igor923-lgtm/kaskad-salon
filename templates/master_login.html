@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#6C63FF">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/icon-192.png?v=2">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">
+  <meta property="og:image" content="/static/icon-512.png">
+  <meta name="msapplication-TileImage" content="/static/icon-192.png">
+  <title>{{ salon_name }} Мастер</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+  <style>
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    /* pinch-zoom off, scroll on */
+    html, body { touch-action: pan-x pan-y; }
+    .login-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+    .login-card h1 { font-size: 22px; margin-bottom: 8px; }
+    .login-card p { color: var(--text-light); margin-bottom: 24px; }
+    .login-card .form-group { text-align: left; }
+    .login-card .form-group input { font-size: 16px; min-height: 48px; }
+    .login-card .btn { width: 100%; margin-top: 8px; }
+    .otp-inputs {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 16px 0;
+    }
+    .otp-inputs input {
+      width: 48px;
+      height: 56px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+    }
+    .otp-inputs input:focus { border-color: var(--primary); }
+    .error { color: var(--danger); font-size: 13px; margin-top: 8px; }
+    .success { color: var(--primary); font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <!-- Шаг 1: Телефон -->
+      <div id="step1">
+        <h1>{{ salon_name }}</h1>
+        <p>Вход для мастеров</p>
+        <div class="form-group">
+          <label for="phone">Номер телефона</label>
+          <input id="phone" type="tel" inputmode="tel" enterkeyhint="go"
+                 autocomplete="tel" placeholder="+375..." name="phone">
+        </div>
+        <div class="error" id="err1"></div>
+        <button class="btn btn-primary" onclick="requestCode()">Получить код</button>
+      </div>
+
+      <!-- Шаг 2: Код -->
+      <div id="step2" style="display:none">
+        <h1>Код из Telegram</h1>
+        <p>Отправлен в чат с ботом</p>
+        <div style="margin:16px 0">
+          <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code"
+                 maxlength="4" placeholder="····"
+                 style="width:100%;font-size:32px;text-align:center;letter-spacing:16px;padding:12px;border:2px solid var(--border);border-radius:12px;outline:none"
+                 oninput="onOtpInput(this)">
+        </div>
+        <div class="error" id="err2"></div>
+        <button class="btn btn-primary" onclick="verifyCode()">Войти</button>
+        <button class="btn btn-outline" style="margin-top:8px" onclick="showStep1()">Назад</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// Вход: dashboard только при валидной cookie-сессии, не по мусору в localStorage
+function hasMasterCookie() {
+  return /(?:^|;\s*)master_session=/.test(document.cookie);
+}
+
+const existingToken = localStorage.getItem('master_token');
+const existingName = localStorage.getItem('master_name');
+if (existingToken && existingName) {
+  if (hasMasterCookie()) {
+    window.location.href = '/master/dashboard';
+  } else {
+    // нет cookie — не петляем dashboard↔login, чистим хвосты и показываем поле
+    localStorage.removeItem('master_token');
+    localStorage.removeItem('master_name');
+    localStorage.removeItem('master_id');
+    localStorage.removeItem('master_role');
+  }
+}
+
+let phone = '';
+
+// Нативный focus по label[for=phone]; без preventDefault (гасит клавиатуру на телефоне)
+function focusPhone() {
+  const el = document.getElementById('phone');
+  if (!el) return;
+  if (document.getElementById('step1').style.display === 'none') return;
+  el.focus({ preventScroll: false });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const lbl = document.querySelector('label[for="phone"]');
+  if (lbl) lbl.addEventListener('click', (e) => {
+    e.preventDefault();
+    focusPhone();
+  });
+});
+
+function showStep1() {
+  document.getElementById('step1').style.display = '';
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('err1').textContent = '';
+  document.getElementById('err2').textContent = '';
+}
+
+// iOS/PWA: запрет pinch-zoom (два пальца)
+['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => {
+  document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
+});
+
+function onOtpInput(el) {
+  // Автопереход к верификации когда введены все 4 цифры
+  el.value = el.value.replace(/\D/g, '');
+  if (el.value.length === 4) {
+    verifyCode();
+  }
+}
+
+async function requestCode() {
+  phone = document.getElementById('phone').value.trim();
+  if (!phone) { document.getElementById('err1').textContent = 'Введите номер'; return; }
+  document.getElementById('err1').textContent = '';
+
+  try {
+    const res = await fetch('/api/master/auth/request', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({phone}),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = '';
+      document.getElementById('otp').focus();
+    } else {
+      document.getElementById('err1').textContent = data.detail || 'Ошибка';
+    }
+  } catch(e) {
+    document.getElementById('err1').textContent = 'Ошибка сети';
+  }
+}
+
+async function verifyCode() {
+  const code = document.getElementById('otp').value.trim();
+  if (code.length < 4) { document.getElementById('err2').textContent = 'Введите 4 цифры'; return; }
+
+  try {
+    const res = await fetch('/api/master/auth/verify', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({phone, code}),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('master_token', data.token);
+      localStorage.setItem('master_name', data.master_name);
+      localStorage.setItem('master_id', data.master_id);
+      localStorage.setItem('master_role', data.role || 'master_edit');
+      window.location.href = '/master/dashboard';
+    } else {
+      document.getElementById('err2').textContent = data.detail || 'Неверный код';
+    }
+  } catch(e) {
+    document.getElementById('err2').textContent = 'Ошибка сети';
+  }
+}
+
+</script>
+</body>
+</html>

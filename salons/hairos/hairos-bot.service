@@ -1,0 +1,16 @@
+[Unit]
+Description=Hairos Studio Bot + CRM
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hairos-bot
+Environment=SALON_ID=hairos
+ExecStart=/opt/hairos-bot/venv/bin/python3 -m uvicorn api:app --host 0.0.0.0 --port 8005
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

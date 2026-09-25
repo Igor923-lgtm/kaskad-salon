@@ -1,0 +1,16 @@
+[Unit]
+Description=Hairos Studio Telegram Bot Polling
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hairos-bot
+Environment=SALON_ID=hairos
+ExecStart=/opt/hairos-bot/venv/bin/python3 bot.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

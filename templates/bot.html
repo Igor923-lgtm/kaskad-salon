@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ru" >
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Бот — {{ salon_name }} CRM</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f1a; color: #e8e8f0; }
+    .main-content { padding: 20px 20px 40px; max-width: 900px; }
+    h1 { font-size: 24px; margin-bottom: 16px; background: linear-gradient(135deg, #6C63FF, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; }
+    h2 { font-size: 17px; margin-bottom: 12px; color: #e8e8f0; }
+    .card { background: rgba(22,22,37,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 12px; }
+    .setting:last-child { border-bottom: none; }
+    .setting-label { font-size: 14px; }
+    .setting-desc { font-size: 12px; color: #8888a0; margin-top: 2px; }
+    .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.2); border-radius: 13px; transition: 0.3s; }
+    .slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: #e8e8f0; border-radius: 50%; transition: 0.3s; }
+    .toggle input:checked + .slider { background: linear-gradient(135deg, #6C63FF, #a855f7); }
+    .toggle input:checked + .slider:before { transform: translateX(22px); }
+    .btn { display: inline-block; padding: 8px 16px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; }
+    .btn-danger { background: rgba(255,60,60,0.85); color: #fff; }
+    .btn-ghost { background: rgba(255,255,255,0.06); color: #e8e8f0; border: 1px solid rgba(255,255,255,0.1); }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 4px; }
+    .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="url"],
+    .form-group select, .form-group textarea {
+      width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05); color: #e8e8f0; font-size: 14px; outline: none;
+    }
+    .form-group textarea { min-height: 90px; resize: vertical; font-family: inherit; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #6C63FF; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .status-dot.on { background: #2ECC71; box-shadow: 0 0 6px #2ECC71; }
+    .status-dot.off { background: #e74c3c; }
+    .menu-row { display: grid; grid-template-columns: 40px 1fr 120px 1fr 90px 70px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .menu-row input, .menu-row select { width: 100%; padding: 7px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #e8e8f0; font-size: 13px; }
+    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .photo-cell { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,0.04); }
+    .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-cell .del { position: absolute; top: 4px; right: 4px; background: rgba(255,0,0,0.85); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; }
+    .saved { position: fixed; bottom: 20px; right: 20px; background: #2ECC71; color: #fff; padding: 12px 24px; border-radius: 10px; display: none; font-size: 14px; z-index: 100; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: rgba(108,99,255,0.2); color: #a8b0ff; }
+    .section-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .section-nav a { padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,0.05); color: #aaa; text-decoration: none; font-size: 13px; border: 1px solid rgba(255,255,255,0.06); }
+    .section-nav a.active { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; border-color: transparent; }
+    .hint { font-size: 12px; color: #8888a0; margin-top: 6px; }
+    .start-photo-preview { width: 120px; height: 120px; border-radius: 14px; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); display: block; margin-bottom: 10px; }
+    @media (max-width: 720px) {
+      .menu-row { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+<div class="main-content">
+  <h1>🤖 Управление ботом</h1>
+  <div class="setting-desc" id="menuOrgBadge" style="margin:-8px 0 16px;font-weight:600;"></div>
+
+  <div class="section-nav">
+    <a href="#status" class="active">Статус</a>
+    <a href="#start">Приветствие /start</a>
+    <a href="#menu">Кнопки меню</a>
+    <a href="#gallery">Галерея работ</a>
+    <a href="#notify">Оповещения</a>
+    <a href="#admins">Админы</a>
+  </div>
+
+  <!-- Статус -->
+  <div class="card" id="status">
+    <h2>Статус бота</h2>
+    <div class="setting">
+      <div>
+        <div class="setting-label"><span class="status-dot" id="statusDot"></span><span id="statusText">Проверка…</span></div>
+        <div class="setting-desc" id="heartbeatText">—</div>
+      </div>
+      <button class="btn btn-ghost" onclick="loadStatus()">Обновить</button>
+    </div>
+    <div class="setting">
+      <div>
+        <div class="setting-label">Токен бота</div>
+        <div class="setting-desc">BOT_TOKEN в .env салона</div>
+      </div>
+      <span class="badge" id="tokenBadge">…</span>
+    </div>
+  </div>
+
+  <!-- Приветствие -->
+  <div class="card" id="start">
+    <h2>Приветствие /start</h2>
+    <div class="form-group">
+      <label>Фото при нажатии Старт</label>
+      <img class="start-photo-preview" id="startPhotoPreview" src="" alt="" style="display:none">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="document.getElementById('startPhotoInput').click()">📷 Загрузить фото</button>
+        <button class="btn btn-danger" id="startPhotoDel" style="display:none" onclick="deleteStartPhoto()">Удалить</button>
+        <input type="file" id="startPhotoInput" accept="image/*" style="display:none" onchange="uploadStartPhoto(this)">
+      </div>
+      <div class="hint">JPG/PNG/WebP до 5 МБ. Если не задано — используется логотип салона.</div>
+    </div>
+    <div class="form-group">
+      <label>Текст приветствия</label>
+      <textarea id="welcomeText" placeholder="✨ Добро пожаловать!…"></textarea>
+      <div class="hint">Пусто = текст по умолчанию. Сохраняется в content[welcome], бот читает при /start.</div>
+    </div>
+    <button class="btn btn-primary" onclick="saveWelcome()">Сохранить приветствие</button>
+  </div>
+
+  <!-- Меню -->
+  <div class="card" id="menu">
+    <h2>Кнопки главного меню</h2>
+    <div class="hint" style="margin-bottom:10px;">Порядок = порядок в боте. Action «Раздел» открывает встроенный раздел; «URL» — ссылку.</div>
+    <div class="menu-row" style="color:#8888a0; font-size:11px; text-transform:uppercase;">
+      <div>Эмодзи</div><div>Название</div><div>Тип</div><div>Раздел / URL</div><div>Порядок</div><div></div>
+    </div>
+    <div id="menuList"></div>
+    <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="addMenuRow()">+ Добавить кнопку</button>
+      <button class="btn btn-ghost" onclick="saveAllMenu()">Сохранить всё</button>
+    </div>
+    <div class="hint">Изменения применяются к боту сразу после сохранения (меню читается из БД).</div>
+  </div>
+
+  <!-- Галерея -->
+  <div class="card" id="gallery">
+    <h2>Галерея работ (до 15 фото в категории)</h2>
+    <div class="form-group">
+      <label>Категория</label>
+      <select id="galleryCat" onchange="loadGallery()"></select>
+    </div>
+    <div class="photo-grid" id="galleryList"></div>
+    <div class="form-group">
+      <label>Новая категория (папка)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="newCatLabel" placeholder="Название (🔽 …)" style="flex:1">
+        <input type="text" id="newCatFolder" placeholder="имя_папки" style="flex:1">
+        <button class="btn btn-ghost" onclick="addCategory()">Добавить</button>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="document.getElementById('galleryFile').click()">📷 Загрузить фото</button>
+      <input type="file" id="galleryFile" accept="image/*" multiple style="display:none" onchange="uploadGallery(this)">
+    </div>
+    <div class="hint">Максимум 15 фото в одной категории.</div>
+  </div>
+
+  <!-- Оповещения -->
+  <div class="card" id="notify">
+    <h2>Оповещения</h2>
+    <div class="hint" style="margin-bottom:12px;">Шаблоны: {master_name} {time} {date} {client_name}. Quiet hours — часы без отправки.</div>
+    <div id="notifyList"></div>
+    <button class="btn btn-primary" onclick="saveNotify()" style="margin-top:12px;">Сохранить оповещения</button>
+  </div>
+
+  <!-- Админы -->
+  <div class="card" id="admins">
+    <h2>ID администраторов Telegram</h2>
+    <div class="form-group">
+      <label>Через запятую</label>
+      <input type="text" id="adminIds" placeholder="123456789,987654321">
+      <div class="hint">Сюда приходят уведомления «Новая запись». Пусто = берётся из .env ADMIN_IDS.</div>
+    </div>
+    <button class="btn btn-primary" onclick="saveAdminIds()">Сохранить</button>
+  </div>
+</div>
+
+<div class="saved" id="saved">✓ Сохранено</div>
+
+<script>
+function showSaved() {
+  var el = document.getElementById('saved');
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 2000);
+}
+
+async function api(url, opts) {
+  opts = opts || {};
+  opts.credentials = 'same-origin';
+  if (opts.body && !(opts.body instanceof FormData) && typeof opts.body === 'object') {
+    opts.headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+    opts.body = JSON.stringify(opts.body);
+  }
+  var resp = await fetch(url, opts);
+  if (!resp.ok) {
+    var err = await resp.json().catch(function() { return {}; });
+    throw new Error(err.detail || ('Ошибка ' + resp.status));
+  }
+  return resp.json();
+}
+
+/* ── Status ── */
+async function loadStatus() {
+  try {
+    var s = await api('/api/bot/status');
+    var dot = document.getElementById('statusDot');
+    var txt = document.getElementById('statusText');
+    var hb = document.getElementById('heartbeatText');
+    var tok = document.getElementById('tokenBadge');
+    if (s.online) { dot.className = 'status-dot on'; txt.textContent = 'Бот онлайн'; }
+    else { dot.className = 'status-dot off'; txt.textContent = 'Бот офлайн (нет сигнала >10 мин)'; }
+    hb.textContent = s.heartbeat_at ? ('Последний сигнал: ' + s.heartbeat_at) : 'Сигнал ещё не получен';
+    tok.textContent = s.bot_token_set ? 'настроен' : 'не задан';
+    if (s.start_photo_url) {
+      var img = document.getElementById('startPhotoPreview');
+      img.src = s.start_photo_url + '?t=' + Date.now();
+      img.style.display = 'block';
+      document.getElementById('startPhotoDel').style.display = 'inline-block';
+    }
+    if (s.admin_ids) document.getElementById('adminIds').value = s.admin_ids;
+  } catch (e) {
+    document.getElementById('statusText').textContent = e.message;
+  }
+}
+
+/* ── Welcome ── */
+async function loadWelcome() {
+  try {
+    var d = await api('/api/bot/welcome');
+    document.getElementById('welcomeText').value = d.text || '';
+  } catch (e) {}
+}
+async function saveWelcome() {
+  try {
+    await api('/api/bot/welcome', { method: 'PUT', body: { text: document.getElementById('welcomeText').value } });
+    showSaved();
+  } catch (e) { alert(e.message); }
+}
+async function uploadStartPhoto(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var form = new FormData();
+  form.append('file', file);
+  try {
+    var d = await api('/api/bot/start-photo', { method: 'POST', body: form });
+    var img = document.getElementById('startPhotoPreview');
+    img.src = d.url + '?t=' + Date.now();
+    img.style.display = 'block';
+    document.getElementById('startPhotoDel').style.display = 'inline-block';
+    showSaved();
+  } catch (e) { alert(e.message); }
+  input.value = '';
+}
+async function deleteStartPhoto() {
+  if (!confirm('Удалить фото старта?')) return;
+  try {
+    await api('/api/bot/start-photo', { method: 'DELETE' });
+    document.getElementById('startPhotoPreview').style.display = 'none';
+    document.getElementById('startPhotoDel').style.display = 'none';
+    showSaved();
+  } catch (e) { alert(e.message); }
+}
+
+/* ── Menu ── */
+var SECTIONS = [
+  ['menu_book', 'Запись / бронь'],
+  ['menu_services', 'Услуги и цены'],
+  ['menu_masters', 'Мастера / пространства'],
+  ['menu_works', 'Галерея работ'],
+  ['menu_my_bookings', 'Мои записи'],
+  ['menu_edit_booking', 'Изменить запись'],
+  ['menu_history', 'История'],
+  ['menu_discount', 'Скидки'],
+  ['menu_birthday', 'День рождения'],
+  ['menu_location', 'Контакты / карта'],
+  ['menu_contact', 'Связаться'],
+];
+var menuItems = [];
+
+function sectionOptions(sel) {
+  return SECTIONS.map(function(s) {
+    return '<option value="' + s[0] + '"' + (sel === s[0] ? ' selected' : '') + '>' + s[1] + '</option>';
+  }).join('');
+}
+
+function renderMenu() {
+  var html = '';
+  menuItems.forEach(function(it, idx) {
+    var valCell = it.action_type === 'url'
+      ? '<input type="url" data-i="' + idx + '" data-f="action_value" value="' + esc(it.action_value || '') + '" placeholder="https://…">'
+      : '<select data-i="' + idx + '" data-f="action_value">' + sectionOptions(it.action_value) + '</select>';
+    html += '<div class="menu-row">' +
+      '<input type="text" data-i="' + idx + '" data-f="emoji" value="' + esc(it.emoji || '') + '" maxlength="4" placeholder="📅">' +
+      '<input type="text" data-i="' + idx + '" data-f="label" value="' + esc(it.label || '') + '" placeholder="Название">' +
+      '<select data-i="' + idx + '" data-f="action_type" onchange="onActionType(' + idx + ', this.value)">' +
+        '<option value="section"' + (it.action_type === 'section' ? ' selected' : '') + '>Раздел</option>' +
+        '<option value="url"' + (it.action_type === 'url' ? ' selected' : '') + '>URL</option>' +
+      '</select>' +
+      valCell +
+      '<input type="number" data-i="' + idx + '" data-f="sort_order" value="' + (it.sort_order != null ? it.sort_order : idx) + '">' +
+      '<div style="display:flex;gap:4px;align-items:center;">' +
+        '<label class="toggle" title="Вкл/выкл"><input type="checkbox" data-i="' + idx + '" data-f="enabled"' + (it.enabled ? ' checked' : '') + '><span class="slider"></span></label>' +
+        '<button class="btn btn-danger" style="padding:4px 8px;font-size:12px;" onclick="removeMenuRow(' + idx + ')">×</button>' +
+      '</div>' +
+    '</div>';
+  });
+  document.getElementById('menuList').innerHTML = html || '<div class="hint">Нет кнопок</div>';
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function onActionType(i, v) {
+  menuItems[i].action_type = v;
+  if (v === 'url' && !String(menuItems[i].action_value || '').startsWith('http')) {
+    menuItems[i].action_value = '';
+  }
+  if (v === 'section' && String(menuItems[i].action_value || '').startsWith('http')) {
+    menuItems[i].action_value = 'menu_book';
+  }
+  renderMenu();
+}
+
+function addMenuRow() {
+  menuItems.push({
+    id: null, emoji: '➡️', label: 'Новая кнопка',
+    action_type: 'section', action_value: 'menu_book',
+    sort_order: menuItems.length, enabled: true
+  });
+  renderMenu();
+}
+
+function removeMenuRow(i) {
+  if (!confirm('Удалить кнопку «' + menuItems[i].label + '»?')) return;
+  var it = menuItems[i];
+  menuItems.splice(i, 1);
+  if (it.id) {
+    api('/api/bot/menu/' + it.id, { method: 'DELETE' }).then(loadMenu).catch(function(e){ alert(e.message); });
+  } else {
+    renderMenu();
+  }
+}
+
+function collectMenu() {
+  var rows = document.querySelectorAll('#menuList .menu-row');
+  rows.forEach(function(row) {
+    row.querySelectorAll('[data-i]').forEach(function(el) {
+      var i = +el.dataset.i;
+      var f = el.dataset.f;
+      if (!menuItems[i]) return;
+      if (f === 'enabled') menuItems[i][f] = el.checked;
+      else if (f === 'sort_order') menuItems[i][f] = parseInt(el.value, 10) || 0;
+      else menuItems[i][f] = el.value;
+    });
+  });
+}
+
+async function saveAllMenu() {
+  collectMenu();
+  try {
+    for (var i = 0; i < menuItems.length; i++) {
+      var it = menuItems[i];
+      it.sort_order = i;
+      if (!it.label || !String(it.label).trim()) continue;
+      if (it.id) {
+        await api('/api/bot/menu/' + it.id, { method: 'PUT', body: it });
+      } else {
+        var d = await api('/api/bot/menu', { method: 'POST', body: it });
+        it.id = d.id;
+      }
+    }
+    showSaved();
+    await loadMenu();
+  } catch (e) { alert(e.message); }
+}
+
+async function loadMenu() {
+  try {
+    var d = await api('/api/bot/menu');
+    menuItems = d.items || [];
+    var badge = document.getElementById('menuOrgBadge');
+    if (badge) {
+      var org = d.org_type === 'coworking' ? '🏢 Режим: Коворкинг' : '💄 Режим: Салон красоты';
+      badge.textContent = org + ' · правится меню именно этого режима';
+      badge.style.color = d.org_type === 'coworking' ? '#4ECDC4' : '#a855f7';
+    }
+    renderMenu();
+  } catch (e) { alert(e.message); }
+}
+
+/* ── Gallery ── */
+var cats = [];
+
+async function loadCats() {
+  try {
+    cats = await api('/api/settings/works-categories');
+    var sel = document.getElementById('galleryCat');
+    var cur = sel.value;
+    sel.innerHTML = cats.map(function(c) {
+      return '<option value="' + esc(c.folder) + '">' + esc(c.label) + '</option>';
+    }).join('');
+    if (cur) sel.value = cur;
+    loadGallery();
+  } catch (e) {}
+}
+
+async function addCategory() {
+  var label = document.getElementById('newCatLabel').value.trim();
+  var folder = document.getElementById('newCatFolder').value.trim();
+  if (!label || !folder) { alert('Заполните название и имя папки'); return; }
+  cats.push({ label: label, folder: folder });
+  try {
+    await api('/api/settings/works-categories', { method: 'PUT', body: { categories: cats } });
+    document.getElementById('newCatLabel').value = '';
+    document.getElementById('newCatFolder').value = '';
+    showSaved();
+    loadCats();
+  } catch (e) { alert(e.message); }
+}
+
+async function loadGallery() {
+  var cat = document.getElementById('galleryCat').value;
+  try {
+    var photos = await api('/api/settings/works-photos');
+    var list = photos.filter(function(p) {
+      if (!cat) return p.name.indexOf('/') === -1;
+      return p.name.indexOf(cat + '/') === 0;
+    });
+    var el = document.getElementById('galleryList');
+    el.innerHTML = list.map(function(p) {
+      return '<div class="photo-cell"><img src="' + p.url + '?t=' + Date.now() + '" alt="">' +
+        '<button class="del" onclick="delPhoto(\'' + p.name.replace(/'/g, "\\'") + '\')">×</button></div>';
+    }).join('') || '<div class="hint">Нет фото</div>';
+  } catch (e) {}
+}
+
+async function uploadGallery(input) {
+  var cat = document.getElementById('galleryCat').value || '';
+  var files = Array.prototype.slice.call(input.files || []);
+  for (var i = 0; i < files.length; i++) {
+    var form = new FormData();
+    form.append('file', files[i]);
+    form.append('category', cat);
+    try {
+      await api('/api/settings/works-photo', { method: 'POST', body: form });
+    } catch (e) {
+      alert(e.message);
+      break;
+    }
+  }
+  input.value = '';
+  showSaved();
+  loadGallery();
+}
+
+async function delPhoto(name) {
+  if (!confirm('Удалить фото?')) return;
+  try {
+    await api('/api/settings/works-photo/' + encodeURIComponent(name), { method: 'DELETE' });
+    loadGallery();
+  } catch (e) { alert(e.message); }
+}
+
+/* ── Notifications ── */
+async function loadNotify() {
+  try {
+    var d = await api('/api/bot/notifications');
+    var html = '';
+    d.items.forEach(function(it, i) {
+      html += '<div class="setting" data-ntype="' + esc(it.type) + '">' +
+        '<div style="flex:1;">' +
+          '<div class="setting-label">' + esc(it.label) + ' <span class="badge">' + esc(it.type) + '</span></div>' +
+          '<div class="setting-desc" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">' +
+            '<label>За сколько (ч): <input type="number" step="0.5" min="0" max="168" data-f="lead_hours" value="' + it.lead_hours + '" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#e8e8f0;"></label>' +
+            '<label>С: <input type="number" min="0" max="24" data-f="quiet_start" value="' + it.quiet_start + '" style="width:50px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#e8e8f0;"></label>' +
+            '<label>До: <input type="number" min="0" max="24" data-f="quiet_end" value="' + it.quiet_end + '" style="width:50px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#e8e8f0;"></label>' +
+          '</div>' +
+          '<textarea data-f="template" style="width:100%;margin-top:6px;min-height:88px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#e8e8f0;font-size:13px;white-space:pre-wrap;line-height:1.4;font-family:inherit;">' + esc(it.template || '') + '</textarea>' +
+        '</div>' +
+        '<label class="toggle"><input type="checkbox" data-f="enabled"' + (it.enabled ? ' checked' : '') + '><span class="slider"></span></label>' +
+      '</div>';
+    });
+    document.getElementById('notifyList').innerHTML = html;
+  } catch (e) { alert(e.message); }
+}
+
+async function saveNotify() {
+  var items = [];
+  document.querySelectorAll('#notifyList .setting').forEach(function(row) {
+    var obj = { type: row.dataset.ntype };
+    row.querySelectorAll('[data-f]').forEach(function(el) {
+      var f = el.dataset.f;
+      if (f === 'enabled') obj[f] = el.checked;
+      else if (f === 'template') obj[f] = el.value;
+      else obj[f] = parseFloat(el.value);
+    });
+    items.push(obj);
+  });
+  try {
+    await api('/api/bot/notifications', { method: 'PUT', body: { items: items } });
+    showSaved();
+  } catch (e) { alert(e.message); }
+}
+
+async function saveAdminIds() {
+  try {
+    await api('/api/bot/admin-ids', { method: 'PUT', body: { admin_ids: document.getElementById('adminIds').value } });
+    showSaved();
+  } catch (e) { alert(e.message); }
+}
+
+loadStatus();
+loadWelcome();
+loadMenu();
+loadCats();
+loadNotify();
+</script>
+</body>
+</html>

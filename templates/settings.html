@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ru" >
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Настройки — {{ salon_name }} CRM</title>
+    <link rel="stylesheet" href="/static/style_v6.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f1a; color: #e8e8f0; }
+        .main-content { padding: 20px 20px 40px; max-width: 900px; }
+        h1 { font-size: 24px; margin-bottom: 20px; background: linear-gradient(135deg, #6C63FF, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; }
+        h2 { font-size: 17px; margin-bottom: 16px; color: #e8e8f0; }
+        .card { background: rgba(22,22,37,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(20px); }
+        .setting { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .setting:last-child { border-bottom: none; }
+        .setting-label { font-size: 14px; color: #e8e8f0; }
+        .setting-desc { font-size: 12px; color: #8888a0; margin-top: 2px; }
+        .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.1); border-radius: 13px; transition: 0.3s; }
+        .slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: #e8e8f0; border-radius: 50%; transition: 0.3s; }
+        .toggle input:checked + .slider { background: linear-gradient(135deg, #6C63FF, #a855f7); }
+        .toggle input:checked + .slider:before { transform: translateX(22px); }
+        .saved { position: fixed; bottom: 20px; right: 20px; background: #2ECC71; color: #fff; padding: 12px 24px; border-radius: 10px; display: none; font-size: 14px; box-shadow: 0 4px 15px rgba(46,204,113,0.3); z-index: 100; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
+        .form-group input[type="text"] { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #e8e8f0; font-size: 14px; outline: none; }
+        .form-group input[type="text"]:focus { border-color: #6C63FF; }
+        .btn { display: inline-block; padding: 9px 18px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .logo-preview { width: 120px; height: 120px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.1); object-fit: contain; margin-bottom: 12px; display: block; background: rgba(255,255,255,0.05); }
+        .file-input-wrapper { position: relative; display: inline-block; }
+        .file-input-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+    </style>
+</head>
+<body>
+    {% include '_sidebar.html' %}
+    <div class="main-content">
+        <h1>⚙️ Настройки</h1>
+
+        <!-- Название и логотип салона -->
+        <div class="card">
+            <h2>Название и логотип салона</h2>
+            <div class="form-group">
+                <label>Название салона</label>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <input type="text" id="salonNameInput" value="{{ salon_name }}" placeholder="Введите название" maxlength="60">
+                    <button class="btn btn-primary" onclick="saveSalonName()">Сохранить</button>
+                </div>
+                <div class="setting-desc" style="margin-top:6px;">До 60 символов. В сайдбаре кегль подстраивается автоматически.</div>
+            </div>
+            <div class="form-group">
+                <label>Логотип</label>
+                <img class="logo-preview" id="logoPreview" src="{{ salon_logo }}" alt="Логотип"
+                     onerror="this.src='/static/logo.png'">
+                <div class="file-input-wrapper">
+                    <button class="btn btn-primary">📷 Загрузить логотип</button>
+                    <input type="file" accept="image/*" onchange="uploadLogo(this)">
+                </div>
+                <div class="setting-desc" style="margin-top:8px;">JPG, PNG или WebP. Максимум 5 МБ. Автоматически ужимается до 512px с сохранением пропорций.</div>
+            </div>
+        </div>
+
+        <!-- Режим работы -->
+        <div class="card">
+            <h2>Режим работы</h2>
+            <div style="display:flex; gap:12px; margin-top:8px;">
+                <button class="btn org-btn" id="orgBeauty" onclick="setOrgType('beauty')" style="flex:1; padding:14px; font-size:16px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#e8e8f0;{% if org_type != 'coworking' %} background:linear-gradient(135deg,#6C63FF,#a855f7); border-color:#6C63FF; color:#fff;{% endif %}">
+                    💄 Салон красоты
+                </button>
+                <button class="btn org-btn" id="orgCoworking" onclick="setOrgType('coworking')" style="flex:1; padding:14px; font-size:16px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#e8e8f0;{% if org_type == 'coworking' %} background:linear-gradient(135deg,#6C63FF,#a855f7); border-color:#6C63FF; color:#fff;{% endif %}">
+                    🏢 Коворкинг
+                </button>
+            </div>
+            <div class="setting-desc" style="margin-top:10px;" id="orgModeHint"></div>
+            <ul class="setting-desc" id="orgModeList" style="margin:8px 0 0 18px; line-height:1.5; padding-left:0;"></ul>
+            <div class="setting-desc" style="margin-top:10px;">Бот и CRM перестроят меню и подписи за несколько секунд — без перезапуска.</div>
+        </div>
+
+        <!-- Функции -->
+        <div class="card">
+            <h2>Функции</h2>
+            {% for key, value in flags.items() %}
+            {% if key != 'ORG_TYPE' %}
+            <div class="setting">
+                <div>
+                    <div class="setting-label">{{ labels.get(key, key) }}</div>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" data-key="{{ key }}" {{ 'checked' if value else '' }} onchange="saveSetting(this)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Контактная информация -->
+        <div class="card">
+            <h2>Контактная информация</h2>
+            <div class="form-group">
+                <label>Адрес</label>
+                <input type="text" id="contactAddress" value="{{ contact.address }}" placeholder="Город, улица, дом">
+            </div>
+            <div class="form-group">
+                <label>Телефон</label>
+                <input type="text" id="contactPhone" value="{{ contact.phone }}" placeholder="+375 XX XXX-XX-XX">
+            </div>
+            <div class="form-group">
+                <label>Метро</label>
+                <input type="text" id="contactMetro" value="{{ contact.metro }}" placeholder="Название метро (XXX м)">
+            </div>
+            <div class="form-group">
+                <label>Ссылка на карту</label>
+                <input type="text" id="contactMapUrl" value="{{ contact.map_url }}" placeholder="https://yandex.by/maps/...">
+            </div>
+            <div class="form-group">
+                <label>WhatsApp</label>
+                <input type="text" id="contactWhatsapp" value="{{ contact.whatsapp }}" placeholder="+375 XX XXX-XX-XX">
+            </div>
+            <button class="btn btn-primary" onclick="saveContact()">Сохранить контакты</button>
+        </div>
+
+        <!-- Часы работы -->
+        <div class="card">
+            <h2>Часы работы</h2>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label>Будни: начало</label>
+                    <input type="text" id="hoursStart" value="{{ hours.start }}" placeholder="10">
+                </div>
+                <div class="form-group">
+                    <label>Будни: конец</label>
+                    <input type="text" id="hoursEnd" value="{{ hours.end }}" placeholder="21">
+                </div>
+                <div class="form-group">
+                    <label>Суббота: начало</label>
+                    <input type="text" id="hoursSatStart" value="{{ hours.sat_start }}" placeholder="10">
+                </div>
+                <div class="form-group">
+                    <label>Суббота: конец</label>
+                    <input type="text" id="hoursSatEnd" value="{{ hours.sat_end }}" placeholder="21">
+                </div>
+                <div class="form-group">
+                    <label>Воскресенье: начало</label>
+                    <input type="text" id="hoursSunStart" value="{{ hours.sun_start }}" placeholder="10">
+                </div>
+                <div class="form-group">
+                    <label>Воскресенье: конец</label>
+                    <input type="text" id="hoursSunEnd" value="{{ hours.sun_end }}" placeholder="21">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveHours()">Сохранить часы</button>
+        </div>
+
+        <!-- Буфер между записями -->
+        <div class="card">
+            <h2>Буфер между записями</h2>
+            <p class="setting-desc" style="margin-bottom:12px;">Пауза после каждой записи, в которую нельзя записать следующего клиента. Кратно 15 минутам. 0 — выключено.</p>
+            <div class="form-group">
+                <label>Буфер (минут)</label>
+                <input type="text" id="bufferMinutes" value="{{ buffer_minutes }}" placeholder="0 / 15 / 30">
+            </div>
+            <button class="btn btn-primary" onclick="saveBuffer()">Сохранить буфер</button>
+        </div>
+
+        <!-- Фото работ → единая галерея в «Бот» -->
+        <div class="card">
+            <h2>Фото работ</h2>
+            <p class="setting-desc" style="margin-bottom:12px;">Галерея с категориями и лимитом 15 фото — на странице «Бот».</p>
+            <a class="btn btn-primary" href="/bot#gallery">📷 Открыть галерею в Боте</a>
+        </div>
+    </div><!-- /main-content -->
+    <div class="saved" id="saved">✓ Сохранено</div>
+    <script>
+        function showSaved() {
+            var el = document.getElementById('saved');
+            el.style.display = 'block';
+            setTimeout(function() { el.style.display = 'none'; }, 2000);
+        }
+
+        async function saveSalonName() {
+            var name = document.getElementById('salonNameInput').value.trim();
+            if (!name) return;
+            if (name.length > 60) name = name.slice(0, 60);
+            try {
+                var resp = await fetch('/api/settings/salon-name', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({name: name})
+                });
+                if (resp.ok) {
+                    document.getElementById('salonNameInput').value = name;
+                    var lt = document.getElementById('logoText');
+                    if (lt && typeof fitSalonName === 'function') {
+                        fitSalonName(lt, name);
+                    } else if (lt) {
+                        lt.textContent = name;
+                        lt.title = name;
+                    }
+                    showSaved();
+                } else {
+                    var err = await resp.json().catch(function() { return {}; });
+                    alert(err.detail || 'Ошибка ' + resp.status);
+                }
+            } catch (e) {
+                alert('Ошибка сети: ' + e.message);
+            }
+        }
+
+        async function uploadLogo(input) {
+            var file = input.files[0];
+            if (!file) return;
+            var form = new FormData();
+            form.append('file', file);
+            try {
+                var resp = await fetch('/api/settings/logo', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: form
+                });
+                if (resp.ok) {
+                    var data = await resp.json();
+                    document.getElementById('logoPreview').src = data.url + '?t=' + Date.now();
+                    showSaved();
+                } else {
+                    var err = await resp.json().catch(function() { return {}; });
+                    alert(err.detail || 'Ошибка загрузки ' + resp.status);
+                }
+            } catch (e) {
+                alert('Ошибка сети: ' + e.message);
+            }
+        }
+
+        async function saveSetting(el) {
+            var key = el.dataset.key;
+            var value = el.checked;
+            try {
+                var resp = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({[key]: value})
+                });
+                if (resp.ok) showSaved();
+            } catch (e) {}
+        }
+
+        var _currentOrg = {{ org_type|tojson }};
+
+        var ORG_HINTS = {
+            beauty: {
+                hint: 'Сейчас: 💄 Салон красоты. Меняется шахматка, списки и меню бота.',
+                items: [
+                    'ЦРМ: Записи · Мастера · Услуги · Клиенты',
+                    'Бот: «📅 Записаться», выбор мастера и услуги',
+                    'Мастера с типом «Коворкинг» скрыты в списках',
+                ],
+            },
+            coworking: {
+                hint: 'Сейчас: 🏢 Коворкинг. Меняется шахматка, списки и меню бота.',
+                items: [
+                    'ЦРМ: Аренды · Пространства · Тарифы · Арендаторы',
+                    'Бот: «🏢 Забронировать слот», без выбора мастера',
+                    'Мастера с типом «Салон красоты» скрыты в списках',
+                ],
+            },
+        };
+
+        function renderOrgHint(type) {
+            var h = ORG_HINTS[type] || ORG_HINTS.beauty;
+            document.getElementById('orgModeHint').textContent = h.hint;
+            document.getElementById('orgModeList').innerHTML = h.items
+                .map(function (t) { return '<li>' + t + '</li>'; }).join('');
+        }
+
+        var _orgToastTimer = null;
+        function orgToast(msg, isError) {
+            var el = document.getElementById('saved');
+            el.textContent = msg;
+            el.style.background = isError ? '#FF6B6B' : '#2ECC71';
+            el.style.display = 'block';
+            clearTimeout(_orgToastTimer);
+            _orgToastTimer = setTimeout(function () { el.style.display = 'none'; }, 3200);
+        }
+
+        async function setOrgType(type) {
+            if (type === _currentOrg) {
+                renderOrgHint(type);
+                return;
+            }
+            var label = type === 'coworking' ? '🏢 Коворкинг' : '💄 Салон красоты';
+            if (!confirm('Переключить режим на «' + label + '»?\\n\\nCRM и бот перестроят меню и подписи за несколько секунд.')) {
+                return;
+            }
+            try {
+                var resp = await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ORG_TYPE: type})
+                });
+                if (resp.ok) {
+                    _currentOrg = type;
+                    updateOrgButtons(type);
+                    renderOrgHint(type);
+                    orgToast('Режим: ' + label + '. Бот обновится за несколько секунд.');
+                } else {
+                    var err = '';
+                    try { err = (await resp.json()).detail || ''; } catch (_) {}
+                    orgToast('Не удалось сохранить режим' + (err ? ': ' + err : ''), true);
+                }
+            } catch (e) {
+                orgToast('Ошибка сети: ' + e.message, true);
+            }
+        }
+
+        function updateOrgButtons(type) {
+            var beauty = document.getElementById('orgBeauty');
+            var cowork = document.getElementById('orgCoworking');
+            if (type === 'beauty') {
+                beauty.style.background = 'linear-gradient(135deg, #6C63FF, #a855f7)';
+                beauty.style.borderColor = '#6C63FF';
+                beauty.style.color = '#fff';
+                cowork.style.background = 'rgba(255,255,255,0.05)';
+                cowork.style.borderColor = 'rgba(255,255,255,0.1)';
+                cowork.style.color = '#e8e8f0';
+            } else {
+                cowork.style.background = 'linear-gradient(135deg, #6C63FF, #a855f7)';
+                cowork.style.borderColor = '#6C63FF';
+                cowork.style.color = '#fff';
+                beauty.style.background = 'rgba(255,255,255,0.05)';
+                beauty.style.borderColor = 'rgba(255,255,255,0.1)';
+                beauty.style.color = '#e8e8f0';
+            }
+        }
+
+        renderOrgHint(_currentOrg);
+
+        async function saveContact() {
+            var data = {
+                address: document.getElementById('contactAddress').value.trim(),
+                phone: document.getElementById('contactPhone').value.trim(),
+                metro: document.getElementById('contactMetro').value.trim(),
+                map_url: document.getElementById('contactMapUrl').value.trim(),
+                whatsapp: document.getElementById('contactWhatsapp').value.trim(),
+            };
+            try {
+                var resp = await fetch('/api/settings/contact', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                });
+                if (resp.ok) showSaved();
+                else alert('Ошибка');
+            } catch (e) { alert('Ошибка сети'); }
+        }
+
+        async function saveHours() {
+            var data = {
+                start: document.getElementById('hoursStart').value.trim(),
+                end: document.getElementById('hoursEnd').value.trim(),
+                sat_start: document.getElementById('hoursSatStart').value.trim(),
+                sat_end: document.getElementById('hoursSatEnd').value.trim(),
+                sun_start: document.getElementById('hoursSunStart').value.trim(),
+                sun_end: document.getElementById('hoursSunEnd').value.trim(),
+            };
+            try {
+                var resp = await fetch('/api/settings/hours', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                });
+                if (resp.ok) showSaved();
+                else alert('Ошибка');
+            } catch (e) { alert('Ошибка сети'); }
+        }
+
+        async function saveBuffer() {
+            var data = { buffer_minutes: document.getElementById('bufferMinutes').value.trim() || '0' };
+            try {
+                var resp = await fetch('/api/settings/buffer', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                });
+                if (resp.ok) {
+                    var body = await resp.json();
+                    document.getElementById('bufferMinutes').value = body.buffer_minutes;
+                    showSaved();
+                } else {
+                    var err = await resp.json().catch(function() { return {}; });
+                    alert(err.detail || 'Ошибка');
+                }
+            } catch (e) { alert('Ошибка сети'); }
+        }
+    </script>
+</body>
+</html>

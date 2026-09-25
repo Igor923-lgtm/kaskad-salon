@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#6C63FF">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <title>HairOS Мастер</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .day-toggle {
+      display: flex; gap: 6px; padding: 12px 16px; flex-wrap: wrap;
+    }
+    .day-toggle .day-btn {
+      flex: 1; min-width: 44px; min-height: 44px;
+      border: 2px solid var(--border); border-radius: 8px;
+      background: var(--card); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .day-toggle .day-btn.working { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .day-toggle .day-btn.off { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+    .mini-schedule { padding: 0 16px; }
+    .mini-schedule table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .mini-schedule th, .mini-schedule td {
+      border: 1px solid var(--border); padding: 6px 4px; text-align: center;
+    }
+    .mini-schedule th { background: #fafafa; font-weight: 600; }
+    .mini-schedule td.slot-free { background: #f9f9f9; }
+    .mini-schedule td.slot-new { background: #FFF8E1; font-weight: 600; }
+    .mini-schedule td.slot-confirmed { background: #E8F5E9; font-weight: 600; }
+    .mini-schedule td.day-off { background: #f0f0f0; color: var(--text-light); }
+
+    .client-card {
+      background: var(--card); border-radius: var(--radius); padding: 12px 16px;
+      margin: 8px 16px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px;
+    }
+    .client-card .client-info { flex: 1; }
+    .client-card .client-name { font-weight: 600; font-size: 15px; }
+    .client-card .client-meta { color: var(--text-light); font-size: 12px; }
+    .client-card .client-stats { text-align: center; min-width: 50px; }
+    .client-card .client-stats .count { font-size: 20px; font-weight: 700; color: var(--primary); }
+    .client-card .client-stats .label { font-size: 10px; color: var(--text-light); }
+
+    .filter-tabs { display: flex; gap: 4px; padding: 8px 16px; }
+    .filter-tab {
+      flex: 1; min-height: 36px; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+      background: transparent; color: var(--text);
+    }
+    .filter-tab.active { background: var(--primary); color: #fff; }
+    .filter-tab:not(.active):hover { background: var(--bg); }
+    .more-menu-item {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      padding: 12px 16px; border: none; background: none; color: var(--text);
+      font-size: 14px; cursor: pointer; text-align: left;
+    }
+    .more-menu-item:hover { background: rgba(255,255,255,0.05); }
+    .more-menu-item i { width: 20px; text-align: center; color: var(--text-light); }
+  </style>
+</head>
+<body>
+
+<div class="mobile-app" style="padding-bottom:70px">
+  <!-- Приветствие -->
+  <div class="header" style="flex-direction:column;align-items:flex-start;gap:4px">
+    <div style="display:flex;align-items:center;width:100%">
+      <h1 id="masterName" style="margin:0;font-size:20px;font-weight:700">Мастер</h1>
+    </div>
+  </div>
+
+  <!-- Контент вкладок -->
+  <div id="viewToday"></div>
+  <div id="viewWeek" style="display:none"></div>
+  <div id="viewSchedule" style="display:none"></div>
+  <div id="viewClients" style="display:none"></div>
+  <div id="viewFinance" style="display:none"></div>
+  <div id="viewMasters" style="display:none"></div>
+  <div id="viewServices" style="display:none"></div>
+  <div id="viewBroadcast" style="display:none"></div>
+  <div id="viewUsers" style="display:none"></div>
+</div>
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav" id="bottomNav">
+  <button class="bn-item active" data-tab="today" onclick="showTab('today')">
+    <span class="bn-icon"><i class="fa-regular fa-calendar-check"></i></span>
+    <span class="bn-label">Записи</span>
+  </button>
+  <button class="bn-item" data-tab="schedule" onclick="showTab('schedule')">
+    <span class="bn-icon"><i class="fa-solid fa-calendar-days"></i></span>
+    <span class="bn-label">Календарь</span>
+  </button>
+  <button class="bn-item" data-tab="clients" onclick="showTab('clients')">
+    <span class="bn-icon"><i class="fa-solid fa-users"></i></span>
+    <span class="bn-label">Клиенты</span>
+  </button>
+  <button class="bn-item" data-tab="more" onclick="toggleMoreMenu()">
+    <span class="bn-icon"><i class="fa-solid fa-ellipsis"></i></span>
+    <span class="bn-label">Ещё</span>
+  </button>
+</nav>
+
+<!-- More Menu (popup) -->
+<div id="moreMenu" style="display:none;position:fixed;bottom:70px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000;min-width:200px;overflow:hidden">
+  <button class="more-menu-item" onclick="showTab('masters')" id="moreMasters">
+    <i class="fa-solid fa-scissors"></i> Мастера
+  </button>
+  <button class="more-menu-item" onclick="showTab('services')">
+    <i class="fa-solid fa-tags"></i> Услуги
+  </button>
+  <button class="more-menu-item" onclick="showTab('finance')" id="moreFinance">
+    <i class="fa-solid fa-sack-dollar"></i> Финансы
+  </button>
+  <button class="more-menu-item" onclick="showTab('broadcast')" id="moreBroadcast" style="display:none">
+    <i class="fa-solid fa-paper-plane"></i> Рассылка
+  </button>
+  <div style="border-top:1px solid var(--border)"></div>
+  <button class="more-menu-item" onclick="logout()" style="color:var(--danger)">
+    <i class="fa-solid fa-right-from-bracket"></i> Выйти
+  </button>
+</div>
+
+<!-- Модалка создания записи -->
+<div class="modal-overlay" id="createModal" style="display:none" onclick="if(event.target===this)closeCreateModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Новая запись</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeCreateModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" id="cbMasterGroup" style="display:none">
+        <label>Мастер</label>
+        <select id="cbMasterSelect"></select>
+      </div>
+      <div class="form-group">
+        <label>Дата и время</label>
+        <input id="cbDateTime" readonly>
+      </div>
+      <div class="form-group">
+        <label>Имя клиента</label>
+        <input id="cbName" placeholder="Имя">
+      </div>
+      <div class="form-group">
+        <label>Телефон</label>
+        <input id="cbPhone" placeholder="+375...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCreateModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="submitBooking()">Записать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка деталей записи -->
+<div class="modal-overlay" id="detailModal" style="display:none" onclick="if(event.target===this)closeDetailModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Запись</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeDetailModal()">✕</button>
+    </div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="modal-footer" id="detailFooter"></div>
+  </div>
+</div>
+
+<!-- Модалка расписания мастера (для админа) -->
+<div class="modal-overlay" id="scheduleModal" style="display:none" onclick="if(event.target===this)closeScheduleModal()">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h2 id="scheduleModalTitle">Расписание мастера</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeScheduleModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="schedMasterName">
+      <div class="form-group">
+        <label>Дата</label>
+        <input type="date" id="schedDate" onchange="loadSchedModalSlots()">
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="schedDayOff" onchange="toggleSchedDayOff()"> Выходной день
+        </label>
+      </div>
+      <div id="schedSlotsSection" style="margin-top:12px">
+        <label style="font-weight:600;font-size:13px;margin-bottom:8px;display:block">Свободные окошки:</label>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="btn btn-outline btn-sm" onclick="selectSchedAll()">Все</button>
+          <button class="btn btn-outline btn-sm" onclick="deselectSchedAll()">Нет</button>
+        </div>
+        <div id="schedSlotsGrid" style="display:flex;flex-wrap:wrap;gap:4px;max-height:300px;overflow-y:auto"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeScheduleModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveSchedModal()">💾 Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Kill Service Worker cache — гарантия свежих данных
+if ('caches' in window) { caches.keys().then(function(keys) { keys.forEach(function(k) { caches.delete(k); }); }); }
+if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(regs) { regs.forEach(function(r) { r.unregister(); }); }); }
+
+const token = localStorage.getItem('master_token');
+const masterName = localStorage.getItem('master_name') || '';
+const masterRole = localStorage.getItem('master_role') || 'master_edit';
+
+if (!token || !masterName) { localStorage.clear(); window.location.href = '/master'; }
+
+document.getElementById('masterName').textContent = masterName;
+
+// Настройка видимости вкладок по роли
+function setupRoleUI() {
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const isSuperAdmin = masterRole === 'super_admin' || isAdmin;
+  const isDirector = masterRole === 'director' || isSuperAdmin;
+  const isViewOnly = masterRole === 'master_view';
+
+  // super_admin — дополнительные права (обрабатывается в render-функциях)
+  // Users tab removed from bottom nav — admin features accessed differently
+
+  // master_view — скрываем кнопки редактирования (обрабатывается в render-функциях)
+  if (isViewOnly) {
+    document.body.classList.add('view-only');
+  }
+}
+setupRoleUI();
+
+// Обёртка для API-запросов — если 401, перенаправляет на вход
+async function api(url) {
+  const res = await fetch(url);
+  if (res.status === 401) {
+    localStorage.removeItem('master_token');
+    window.location.href = '/master';
+    throw new Error('Unauthorized');
+  }
+  return res.json();
+}
+
+const DEFAULT_SALON_HOURS = {"0":[10,21],"1":[10,21],"2":[10,21],"3":[10,21],"4":[10,21],"5":[11,20],"6":[11,17]};
+let SALON_HOURS = {};
+let HOURS = [];
+
+async function loadSalonHours() {
+  try {
+    const r = await fetch('/api/salon-hours');
+    if (r.ok) { SALON_HOURS = await r.json(); }
+    else { SALON_HOURS = DEFAULT_SALON_HOURS; }
+  } catch(e) { SALON_HOURS = DEFAULT_SALON_HOURS; }
+  updateHoursForDate(new Date());
+}
+
+function getSalonSlots(dow) {
+  const h = SALON_HOURS[String(dow)] || DEFAULT_SALON_HOURS[String(dow)];
+  if (!h) return [];
+  const slots = [];
+  for (let hr = h[0]; hr < h[1]; hr++) {
+    for (let m = 0; m < 60; m += 15) {
+      slots.push(`${String(hr).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    }
+  }
+  return slots;
+}
+
+function getSalonHourRange(dow) {
+  const h = SALON_HOURS[String(dow)] || DEFAULT_SALON_HOURS[String(dow)];
+  if (!h) return [10, 21];
+  return h;
+}
+
+function updateHoursForDate(d) {
+  const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  const [startH, endH] = getSalonHourRange(dow);
+  HOURS = [];
+  for (let h = startH; h < endH; h++) HOURS.push(`${String(h).padStart(2,'0')}:00`);
+}
+
+const DAYS_RU = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const DAYS_FULL = ['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+
+function logout() {
+  localStorage.removeItem('master_token');
+  localStorage.removeItem('master_name');
+  localStorage.removeItem('master_id');
+  localStorage.removeItem('master_role');
+  window.location.href = '/master';
+}
+
+function toggleMoreMenu() {
+  const menu = document.getElementById('moreMenu');
+  const isOpen = menu.style.display !== 'none';
+  menu.style.display = isOpen ? 'none' : 'block';
+  // Подсвечиваем кнопку "Ещё"
+  document.querySelectorAll('.bn-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === 'more');
+  });
+}
+
+// Закрытие меню при клике вне
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('moreMenu');
+  if (!menu) return;
+  if (menu.style.display === 'none') return;
+  if (e.target.closest('#moreMenu') || e.target.closest('[data-tab="more"]')) return;
+  menu.style.display = 'none';
+});
+
+function showTab(tab) {
+  // Закрываем меню "Ещё"
+  document.getElementById('moreMenu').style.display = 'none';
+  // Скрываем все вкладки
+  ['today','schedule','clients','finance','masters','services','broadcast','users'].forEach(t => {
+    const view = document.getElementById(`view${t.charAt(0).toUpperCase()+t.slice(1)}`);
+    if (view) view.style.display = t === tab ? '' : 'none';
+  });
+  // Обновляем bottom nav (вкладки из основного nav)
+  document.querySelectorAll('.bn-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  // Если вкладка из "Ещё" — подсвечиваем кнопку "Ещё"
+  if (['finance','masters','services','broadcast'].includes(tab)) {
+    document.querySelectorAll('.bn-item').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === 'more');
+    });
+  }
+  // Загружаем данные
+  if (tab === 'today') loadToday();
+  if (tab === 'schedule') loadSchedule();
+  if (tab === 'clients') loadClients('active');
+  if (tab === 'finance') loadFinance();
+  if (tab === 'masters') loadMasters();
+  if (tab === 'services') loadServices();
+  if (tab === 'broadcast') loadBroadcast();
+  if (tab === 'users') loadUsers();
+  // Прокрутка наверх
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ── Сегодня ──────────────────────────────────────────────
+
+function statusBadge(confirmed) {
+  return confirmed
+    ? '<span class="badge badge-confirmed">Подтверждена</span>'
+    : '<span class="badge badge-new">Новая</span>';
+}
+
+function renderBookingCard(b, showActions = true) {
+  return `
+    <div class="booking-card status-${b.confirmed ? 'confirmed' : 'new'}">
+      <div class="time-block">
+        <div class="time">${b.time}</div>
+      </div>
+      <div class="details">
+        <div class="client">${b.client_name || 'Без имени'}</div>
+        <div class="service">${statusBadge(b.confirmed)}</div>
+      </div>
+      ${showActions ? `<div class="actions">
+        ${!b.confirmed ? `<button class="btn btn-primary btn-sm" onclick="confirmB(${b.id})">✅</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="cancelB(${b.id})">❌</button>
+      </div>` : ''}
+    </div>`;
+}
+
+async function loadToday() {
+  try {
+    const bookings = await api(`/api/master/today?token=${token}`);
+    const el = document.getElementById('viewToday');
+    const toggleHtml = `<div style="display:flex;gap:4px;padding:8px 16px">
+      <button class="btn btn-sm btn-primary" id="tabTodayBtn" onclick="loadToday()">Сегодня</button>
+      <button class="btn btn-sm btn-outline" id="tabWeekBtn" onclick="loadWeekView()">Неделя</button>
+    </div>`;
+    if (!bookings.length) {
+      el.innerHTML = toggleHtml + '<div class="card" style="margin:8px 16px;text-align:center;color:var(--text-light)">Нет записей на сегодня</div>';
+      return;
+    }
+    el.innerHTML = toggleHtml + bookings.map(b => renderBookingCard(b)).join('');
+  } catch(e) {
+    document.getElementById('viewToday').innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки</div>';
+  }
+}
+
+async function loadWeekView() {
+  // Переключаем кнопки
+  document.getElementById('tabTodayBtn').className = 'btn btn-sm btn-outline';
+  document.getElementById('tabWeekBtn').className = 'btn btn-sm btn-primary';
+  try {
+    const bookings = await api(`/api/master/week?token=${token}`);
+    const el = document.getElementById('viewToday');
+
+// ── Неделя ───────────────────────────────────────────────
+
+async function loadWeek() {
+  try {
+    const bookings = await api(`/api/master/week?token=${token}`);
+    const el = document.getElementById('viewToday');
+    const toggleHtml = `<div style="display:flex;gap:4px;padding:8px 16px">
+      <button class="btn btn-sm btn-outline" id="tabTodayBtn" onclick="loadToday()">Сегодня</button>
+      <button class="btn btn-sm btn-primary" id="tabWeekBtn" onclick="loadWeekView()">Неделя</button>
+    </div>`;
+
+    if (!bookings.length) {
+      el.innerHTML = toggleHtml + '<div class="card" style="margin:8px 16px;text-align:center;color:var(--text-light)">Нет записей на неделю</div>';
+      return;
+    }
+
+    const byDate = {};
+    bookings.forEach(b => {
+      if (!byDate[b.date]) byDate[b.date] = [];
+      byDate[b.date].push(b);
+    });
+
+    const monthsRu = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+    const today = fmtLocal(new Date());
+
+    let html = toggleHtml;
+    Object.keys(byDate).sort().forEach(date => {
+      const d = new Date(date + 'T00:00:00');
+      const label = `${DAYS_RU[d.getDay()===0?6:d.getDay()-1]}, ${d.getDate()} ${monthsRu[d.getMonth()]}`;
+      const isToday = date === today;
+
+      html += `<div style="padding:8px 16px;font-weight:600;font-size:14px;color:var(--text-light);${isToday?'color:var(--primary)':''}">
+        ${isToday ? '● ' : ''}${label} (${byDate[date].length})
+      </div>`;
+      html += byDate[date].map(b => renderBookingCard(b)).join('');
+    });
+
+    el.innerHTML = html;
+  } catch(e) {
+    document.getElementById('viewToday').innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки</div>';
+  }
+}
+
+// ── Расписание (шахматка + выходные) ─────────────────────
+
+let scheduleData = null;
+
+// ── Навигация по дням (ГЛОБАЛЬНЫЕ ФУНКЦИИ) ──
+
+function fmtLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+window.masterPrevDay = function() {
+  const d = new Date(window._masterDate + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  window._masterDate = fmtLocal(d);
+  loadMasterDay();
+};
+
+window.masterNextDay = function() {
+  const d = new Date(window._masterDate + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  window._masterDate = fmtLocal(d);
+  loadMasterDay();
+};
+
+window.masterToday = function() {
+  window._masterDate = fmtLocal(new Date());
+  loadMasterDay();
+};
+
+async function loadSchedule() {
+  try {
+    scheduleData = await api(`/api/master/schedule?token=${token}`);
+    renderSchedule();
+  } catch(e) {
+    document.getElementById('viewSchedule').innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки</div>';
+  }
+}
+
+function renderSchedule() {
+  if (!scheduleData) return;
+  const el = document.getElementById('viewSchedule');
+  const { schedule, bookings, dates } = scheduleData;
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const today = fmtLocal(new Date());
+  const monthsRu = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+
+  let html = '';
+
+  if (isAdmin) {
+    // ── АДМИН: строки = мастера, столбцы = часы (на сегодня) ──
+    html += '<div style="padding:8px 16px;font-weight:600;font-size:15px">Шахматка — все мастера</div>';
+
+    // Собираем уникальных мастеров из расписания И записей
+    const scheduleNames = schedule.map(s => s.master_name);
+    const bookingNames = bookings.map(b => b.master_name);
+    const masterNames = [...new Set([...scheduleNames, ...bookingNames])].filter(n => n && n !== 'АДМИН' && n !== 'Суперадмин');
+
+    // Навигация по датам
+    html += `<div style="padding:8px 16px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <button class="btn btn-outline btn-icon btn-sm" onclick="adminJump(-30)">◀◀</button>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="adminJump(-7)">◀</button>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="adminPrevDay()">◁</button>
+        <span id="adminDate" style="flex:1;font-weight:600;text-align:center;font-size:15px;cursor:pointer" onclick="document.getElementById('adminDatePicker').showPicker()"></span>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="adminNextDay()">▷</button>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="adminJump(7)">▶</button>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="adminJump(30)">▶▶</button>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:center">
+        <button class="btn btn-outline btn-sm" onclick="adminToday()">Сегодня</button>
+        <input type="date" id="adminDatePicker" style="min-height:32px;padding:0 6px;border:1px solid var(--border);border-radius:6px;font-size:13px" onchange="adminGoToDate(this.value)">
+      </div>
+    </div>`;
+
+    html += '<div id="adminGrid" style="padding:0 8px"></div>';
+
+    el.innerHTML = html;
+    window._adminDate = today;
+    renderAdminGrid();
+    return;
+  }
+
+  // ── МАСТЕР: один день с навигацией ──
+  html += '<div id="masterScheduleArea"></div>';
+
+  el.innerHTML = html;
+  window._masterDate = today;
+  renderMasterDay();
+  return;
+}
+
+async function loadMasterDay() {
+  const date = window._masterDate;
+  try {
+    const bookings = await api(`/api/bookings?master_name=${encodeURIComponent(masterName)}&date=${date}&token=${token}`);
+    if (scheduleData) {
+      scheduleData.bookings = bookings;
+    }
+    await loadDateSchedule(date);
+    renderMasterDay();
+  } catch(e) {
+    console.error('loadMasterDay error:', e);
+  }
+}
+
+function renderMasterDay() {
+  const date = window._masterDate;
+  const d = new Date(date + 'T00:00:00');
+  const monthsRu = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const daysRuFull = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  const label = `${daysRuFull[d.getDay()]}, ${d.getDate()} ${monthsRu[d.getMonth()]}`;
+  const today = fmtLocal(new Date());
+  const isToday = date === today;
+
+  const schedule = scheduleData.schedule;
+  const bookings = scheduleData.bookings.filter(b => b.date === date);
+  const sched = schedule.find(s => s.day_of_week === dow);
+  const isOff = !sched || sched.is_day_off;
+
+  let html = `
+    <div style="padding:8px 16px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+        <button class="btn btn-outline btn-icon btn-sm" onclick="masterPrevDay()">◀</button>
+        <span style="flex:1;font-weight:600;text-align:center;font-size:15px;${isToday?'color:var(--primary)':''}">${isToday?'● ':''}${label}</span>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="masterNextDay()">▶</button>
+        <button class="btn btn-outline btn-sm" onclick="masterToday()">Сегодня</button>
+      </div>
+  `;
+
+  // Текущее расписание дня (с учётом часов салона)
+  const [salonStart, salonEnd] = getSalonHourRange(dow);
+  const startTime = sched ? sched.start_time : `${String(salonStart).padStart(2,'0')}:00`;
+  const endTime = sched ? sched.end_time : `${String(salonEnd).padStart(2,'0')}:00`;
+  const startH = Math.max(parseInt(startTime.split(':')[0]), salonStart);
+  const endH = Math.min(parseInt(endTime.split(':')[0]), salonEnd);
+
+  // Получаем выбранные часы
+  const selectedHours = sched && sched.selected_hours ? sched.selected_hours.split(',').map(h => h.trim()) : [];
+  const hasCustomHours = selectedHours.length > 0;
+
+  // Определяем какие слоты показывать (обрезаем по часам салона)
+  const salonSlotSet = new Set(getSalonSlots(dow));
+  let displayHours = [];
+  if (hasCustomHours) {
+    displayHours = selectedHours.filter(h => salonSlotSet.has(h));
+  } else {
+    // 15-минутные слоты в диапазоне расписания мастера
+    for (let h = startH; h < endH; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const slot = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        if (salonSlotSet.has(slot)) displayHours.push(slot);
+      }
+    }
+  }
+
+  // Блок редактирования расписания — чекбоксы часов (15-мин интервалы)
+  html += `<div class="card" style="margin:0 0 12px;padding:12px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <span style="font-weight:600;font-size:13px">Свободные окошки:</span>
+      <button class="btn btn-primary btn-sm" onclick="saveDateSlots()">💾 Сохранить</button>
+      <button class="btn ${isOff ? 'btn-danger' : 'btn-outline'} btn-sm" onclick="toggleDateOff()">${isOff ? '🔴 Выходной' : '🟢 Рабочий'}</button>
+      <button class="btn btn-outline btn-sm" onclick="selectAllSlots()">Все</button>
+      <button class="btn btn-outline btn-sm" onclick="deselectAllSlots()">Нет</button>
+    </div>
+    <div id="hoursGrid" style="display:flex;flex-wrap:wrap;gap:6px">`;
+
+  // Генерируем слоты по часам салона
+  const allSlots = getSalonSlots(dow);
+
+  // Загружаем текущие слоты из date-schedule или weekly
+  const currentSlots = window._dateScheduleSlots || displayHours;
+  const isDateOff = window._dateScheduleOff || false;
+
+  for (const t of allSlots) {
+    const checked = currentSlots.includes(t);
+    const isBooked = bookings.some(b => b.time === t);
+    const bg = isBooked ? '#FF6B6B' : (checked ? '#6C63FF' : 'var(--card)');
+    const border = isBooked ? '#D32F2F' : (checked ? '#5A52D5' : 'var(--border)');
+    const textColor = (isBooked || checked) ? '#fff' : 'inherit';
+    const disabled = isBooked ? 'disabled' : '';
+    html += `<label style="display:flex;align-items:center;justify-content:center;min-width:56px;padding:8px 6px;border:2px solid ${border};border-radius:8px;cursor:${isBooked?'default':'pointer'};font-size:13px;font-weight:600;background:${bg};color:${textColor}">
+      <input type="checkbox" value="${t}" ${checked?'checked':''} ${disabled} style="display:none" onchange="if(!${isBooked}){this.parentElement.style.borderColor=this.checked?'#5A52D5':'var(--border)';this.parentElement.style.background=this.checked?'#6C63FF':'var(--card)';this.parentElement.style.color=this.checked?'#fff':'inherit'}">
+      ${t}
+    </label>`;
+  }
+
+  html += `</div></div>`;
+
+  if (isOff) {
+    html += '<div class="card" style="text-align:center;color:var(--text-light)">Выходной</div>';
+  } else {
+    for (const t of displayHours) {
+      const booking = bookings.find(b => b.time === t);
+      if (booking) {
+        const icon = booking.confirmed ? '✅' : '⏳';
+        const statusText = booking.confirmed ? 'Подтверждена' : 'Новая';
+        html += `<div onclick="showDetail(${booking.id})" style="background:#FF6B6B;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;cursor:pointer">
+          <div style="min-width:46px;font-size:17px;font-weight:700">${t}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${booking.client_name||'Без имени'}</div>
+            <div style="font-size:12px;opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${booking.service_name||statusText}</div>
+          </div>
+          <div style="font-size:20px">${icon}</div>
+        </div>`;
+      } else {
+        html += `<div onclick="openCreate('${date}','${t}')" style="background:#6C63FF;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;cursor:pointer">
+          <div style="min-width:46px;font-size:17px;font-weight:700">${t}</div>
+          <div style="flex:1;font-size:14px;font-weight:500">Свободно</div>
+          <div style="font-size:20px;font-weight:700">+</div>
+        </div>`;
+      }
+    }
+  }
+
+  html += '</div>';
+  document.getElementById('masterScheduleArea').innerHTML = html;
+}
+
+// ── Админ: навигация по дням ──
+
+function adminPrevDay() {
+  const d = new Date(window._adminDate + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  window._adminDate = fmtLocal(d);
+  loadAdminBookings();
+}
+function adminNextDay() {
+  const d = new Date(window._adminDate + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  window._adminDate = fmtLocal(d);
+  loadAdminBookings();
+}
+function adminJump(days) {
+  const d = new Date(window._adminDate + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  window._adminDate = fmtLocal(d);
+  loadAdminBookings();
+}
+function adminToday() {
+  window._adminDate = fmtLocal(new Date());
+  loadAdminBookings();
+}
+function adminGoToDate(dateStr) {
+  if (dateStr) {
+    window._adminDate = dateStr;
+    loadAdminBookings();
+  }
+}
+
+async function loadAdminBookings() {
+  // Загружаем записи на выбранную дату
+  const date = window._adminDate;
+  const bookings = await api(`/api/bookings?date=${date}&token=${token}`);
+  scheduleData.bookings = bookings;
+  renderAdminGrid();
+}
+
+function renderAdminGrid() {
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const date = window._adminDate;
+  const d = new Date(date + 'T00:00:00');
+  updateHoursForDate(d);
+  // Failsafe: если HOURS пуст — заполняем дефолтными часами
+  if (!HOURS.length) {
+    HOURS = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+  }
+  const monthsRu = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  const daysRu = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const label = `${daysRu[d.getDay()]}, ${d.getDate()} ${monthsRu[d.getMonth()]}`;
+
+  document.getElementById('adminDate').textContent = label;
+  const picker = document.getElementById('adminDatePicker');
+  if (picker) picker.value = date;
+
+  const schedule = scheduleData.schedule;
+  const bookings = scheduleData.bookings.filter(b => b.date === date);
+  const scheduleNames = schedule.map(s => s.master_name);
+  const bookingNames = bookings.map(b => b.master_name);
+  const masterNames = [...new Set([...scheduleNames, ...bookingNames])].filter(n => n && n !== 'АДМИН' && n !== 'Суперадмин');
+  const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+
+  let gridHtml = '';
+  masterNames.forEach((name, idx) => {
+    const sched = schedule.find(s => s.master_name === name && s.day_of_week === dow);
+    const isOff = !sched || sched.is_day_off;
+    const masterBookings = bookings.filter(b => b.master_name === name);
+    const canEditSchedule = isAdmin || name === masterName;
+    const bookingCount = masterBookings.length;
+    const expanded = window._expandedMasters && window._expandedMasters.has(name);
+
+    // Заголовок мастера (кликабельный)
+    gridHtml += `<div class="card" style="margin:0 0 8px;padding:0;overflow:hidden">
+      <div onclick="toggleMasterExpand('${name}')" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <span style="font-size:18px">${expanded ? '▼' : '▶'}</span>
+          <span style="font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</span>
+          ${isOff ? '<span style="font-size:12px;color:var(--text-light)">(выходной)</span>' : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="background:${bookingCount > 0 ? '#FF6B6B' : '#6C63FF'};color:#fff;border-radius:12px;padding:2px 8px;font-size:12px;font-weight:600;min-width:20px;text-align:center">${bookingCount}</span>
+          ${canEditSchedule ? `<span onclick="event.stopPropagation();openMasterScheduleModal('${name}')" style="font-size:16px;padding:4px">⚙️</span>` : ''}
+        </div>
+      </div>`;
+
+    // Раскрывающийся блок с окошками
+    if (expanded) {
+      gridHtml += '<div style="padding:0 12px 12px">';
+      if (isOff) {
+        gridHtml += '<div style="text-align:center;color:var(--text-light);font-size:13px;padding:12px 0">Выходной</div>';
+      } else {
+        const bookedHours = {};
+        masterBookings.forEach(b => { bookedHours[b.time.substring(0, 2)] = b; });
+        HOURS.forEach(h => {
+          const booking = bookedHours[h.substring(0, 2)];
+          if (booking) {
+            const icon = booking.confirmed ? '✅' : '⏳';
+            gridHtml += `<div onclick="showDetail(${booking.id})" style="background:#FF6B6B;color:#fff;border-radius:8px;padding:10px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer">
+              <div style="min-width:44px;font-size:16px;font-weight:700">${booking.time}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${booking.client_name||'—'}</div>
+                <div style="font-size:12px;opacity:0.85">${booking.service_name||''}</div>
+              </div>
+              <div style="font-size:20px">${icon}</div>
+            </div>`;
+          } else {
+            gridHtml += `<div onclick="openCreate('${date}','${h}','${name}')" style="background:#6C63FF;color:#fff;border-radius:8px;padding:10px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer">
+              <div style="min-width:44px;font-size:16px;font-weight:700">${h}</div>
+              <div style="flex:1;font-size:14px;font-weight:500">Свободно</div>
+              <div style="font-size:20px;font-weight:700">+</div>
+            </div>`;
+          }
+        });
+      }
+      gridHtml += '</div>';
+    }
+    gridHtml += '</div>';
+  });
+
+  document.getElementById('adminGrid').innerHTML = gridHtml;
+}
+
+function toggleMasterExpand(name) {
+  if (!window._expandedMasters) window._expandedMasters = new Set();
+  if (window._expandedMasters.has(name)) {
+    window._expandedMasters.delete(name);
+  } else {
+    window._expandedMasters.add(name);
+  }
+  renderAdminGrid();
+}
+
+function toggleMasterBlock(blockId) {
+  const el = document.getElementById(blockId);
+  const arrow = document.getElementById(blockId + '_arrow');
+  if (el.style.display === 'none') {
+    el.style.display = '';
+    if (arrow) arrow.textContent = '▼';
+  } else {
+    el.style.display = 'none';
+    if (arrow) arrow.textContent = '›';
+  }
+}
+
+async function adminToggleDayOff(masterName, dow) {
+  const sched = scheduleData.schedule.find(s => s.master_name === masterName && s.day_of_week === dow);
+  const isCurrentlyOff = !sched || sched.is_day_off;
+
+  const items = [{
+    day_of_week: dow,
+    start_time: sched ? sched.start_time : '10:00',
+    end_time: sched ? sched.end_time : '20:00',
+    is_day_off: isCurrentlyOff ? 0 : 1
+  }];
+
+  await fetch(`/api/schedule/${encodeURIComponent(masterName)}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(items),
+  });
+
+  // Обновляем данные
+  scheduleData = await api(`/api/master/schedule?token=${token}`);
+  renderAdminGrid();
+}
+
+async function adminSaveSchedule(masterName, dow) {
+  const startEl = document.getElementById(`adminStart_${masterName}`);
+  const endEl = document.getElementById(`adminEnd_${masterName}`);
+  if (!startEl || !endEl) return;
+
+  const startTime = startEl.value;
+  const endTime = endEl.value;
+
+  if (startTime >= endTime) {
+    alert('Время начала должно быть раньше окончания');
+    return;
+  }
+
+  const items = [{
+    day_of_week: dow,
+    start_time: startTime,
+    end_time: endTime,
+    is_day_off: 0
+  }];
+
+  await fetch(`/api/schedule/${encodeURIComponent(masterName)}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(items),
+  });
+
+  scheduleData = await api(`/api/master/schedule?token=${token}`);
+  renderAdminGrid();
+}
+
+async function toggleDayOff(dow) {
+  const sched = scheduleData.schedule.find(s => s.day_of_week === dow);
+  const isCurrentlyOff = !sched || sched.is_day_off;
+
+  const items = [{
+    day_of_week: dow,
+    start_time: sched ? sched.start_time : '10:00',
+    end_time: sched ? sched.end_time : '20:00',
+    is_day_off: isCurrentlyOff ? 0 : 1
+  }];
+
+  await fetch(`/api/master/schedule?token=${token}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(items),
+  });
+
+  loadSchedule();
+}
+
+// ── Мастер: сохранить расписание дня ──
+
+async function saveHours(dow) {
+  const checkboxes = document.querySelectorAll('#hoursGrid input[type="checkbox"]:checked');
+  const hours = Array.from(checkboxes).map(cb => cb.value);
+
+  if (hours.length === 0) {
+    alert('Выберите хотя бы один час');
+    return;
+  }
+
+  await fetch(`/api/master/hours?token=${token}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ day_of_week: dow, hours: hours }),
+  });
+
+  scheduleData = await api(`/api/master/schedule?token=${token}`);
+  renderMasterDay();
+}
+
+// ── Мастер: сохранить окошки на дату ──
+
+async function saveDateSlots() {
+  const date = window._masterDate;
+  const checkboxes = document.querySelectorAll('#hoursGrid input[type="checkbox"]:checked:not(:disabled)');
+  const slots = Array.from(checkboxes).map(cb => cb.value);
+
+  if (slots.length === 0) {
+    alert('Выберите хотя бы один слот');
+    return;
+  }
+
+  await fetch(`/api/master/date-schedule?token=${token}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ date: date, time_slots: slots, is_day_off: false }),
+  });
+
+  // Обновляем данные
+  window._dateScheduleSlots = slots;
+  window._dateScheduleOff = false;
+  scheduleData = await api(`/api/master/schedule?token=${token}`);
+  renderMasterDay();
+}
+
+async function toggleDateOff() {
+  const date = window._masterDate;
+  const isCurrentlyOff = window._dateScheduleOff || false;
+
+  if (isCurrentlyOff) {
+    // Удаляем кастомное расписание (вернуться к недельному)
+    await fetch(`/api/master/date-schedule?token=${token}&date=${date}`, { method: 'DELETE' });
+    window._dateScheduleSlots = null;
+    window._dateScheduleOff = false;
+  } else {
+    // Ставим выходной
+    await fetch(`/api/master/date-schedule?token=${token}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ date: date, time_slots: [], is_day_off: true }),
+    });
+    window._dateScheduleSlots = [];
+    window._dateScheduleOff = true;
+  }
+
+  scheduleData = await api(`/api/master/schedule?token=${token}`);
+  renderMasterDay();
+}
+
+function selectAllSlots() {
+  document.querySelectorAll('#hoursGrid input[type="checkbox"]:not(:disabled)').forEach(cb => {
+    cb.checked = true;
+    cb.parentElement.style.borderColor = '#5A52D5';
+    cb.parentElement.style.background = '#6C63FF';
+    cb.parentElement.style.color = '#fff';
+    cb.parentElement.style.fontWeight = '600';
+  });
+}
+
+function deselectAllSlots() {
+  document.querySelectorAll('#hoursGrid input[type="checkbox"]:not(:disabled)').forEach(cb => {
+    cb.checked = false;
+    cb.parentElement.style.borderColor = 'var(--border)';
+    cb.parentElement.style.background = 'var(--card)';
+    cb.parentElement.style.color = 'inherit';
+    cb.parentElement.style.fontWeight = '400';
+  });
+}
+
+async function loadDateSchedule(date) {
+  try {
+    const r = await fetch(`/api/master/date-schedule?token=${token}&date=${date}`);
+    const data = await r.json();
+    if (data.source === 'weekly' || data.source === 'none') {
+      window._dateScheduleSlots = null;
+      window._dateScheduleOff = false;
+    } else {
+      window._dateScheduleSlots = data.time_slots ? data.time_slots.split(',').map(h => h.trim()) : [];
+      window._dateScheduleOff = !!data.is_day_off;
+    }
+  } catch (e) {
+    window._dateScheduleSlots = null;
+    window._dateScheduleOff = false;
+  }
+}
+
+async function toggleMasterDayOff(dow) {
+  const sched = scheduleData.schedule.find(s => s.day_of_week === dow);
+  const isCurrentlyOff = !sched || sched.is_day_off;
+
+  const items = [{
+    day_of_week: dow,
+    start_time: sched ? sched.start_time : '10:00',
+    end_time: sched ? sched.end_time : '20:00',
+    is_day_off: isCurrentlyOff ? 0 : 1
+  }];
+
+  await fetch(`/api/master/schedule?token=${token}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(items),
+  });
+
+  scheduleData = await api(`/api/master/schedule?token=${token}`);
+  renderMasterDay();
+}
+
+// ── Клиенты ──────────────────────────────────────────────
+
+async function loadClients(filter) {
+  try {
+    // Обновляем табы
+    document.querySelectorAll('.filter-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.filter === filter);
+    });
+
+    const clients = await api(`/api/master/clients?token=${token}&filter=${filter}`);
+    const el = document.getElementById('viewClients');
+
+    let html = `
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="active" onclick="loadClients('active')">Активные</button>
+        <button class="filter-tab" data-filter="lost" onclick="loadClients('lost')">Потерянные</button>
+      </div>`;
+
+    if (!clients.length) {
+      html += `<div class="card" style="margin:8px 16px;text-align:center;color:var(--text-light)">
+        ${filter === 'active' ? 'Нет активных клиентов' : 'Нет потерянных клиентов'}
+      </div>`;
+      el.innerHTML = html;
+      return;
+    }
+
+    clients.forEach(c => {
+      const lastDate = c.last_visit ? new Date(c.last_visit+'T00:00:00').toLocaleDateString('ru-RU') : '—';
+      html += `
+        <div class="client-card" onclick="openClientDetail('${c.name}','${c.phone||''}','${lastDate}',${c.visit_count})" style="cursor:pointer">
+          <div class="client-info">
+            <div class="client-name">${c.name}</div>
+            <div class="client-meta">${c.phone || 'Нет телефона'} · Последний визит: ${lastDate}</div>
+          </div>
+          <div class="client-stats">
+            <div class="count">${c.visit_count}</div>
+            <div class="label">визитов</div>
+          </div>
+        </div>`;
+    });
+
+    el.innerHTML = html;
+  } catch(e) {
+    document.getElementById('viewClients').innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки</div>';
+  }
+}
+
+// ── Карточка клиента ─────────────────────────────────────
+
+function openClientDetail(name, phone, lastDate, visitCount) {
+  const el = document.getElementById('detailBody');
+  el.innerHTML = `
+    <h3 style="margin-bottom:12px">${name}</h3>
+    <p><strong>Телефон:</strong> ${phone || 'Нет'}</p>
+    <p><strong>Последний визит:</strong> ${lastDate}</p>
+    <p><strong>Всего визитов:</strong> ${visitCount}</p>
+    <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
+    <p style="font-weight:600;margin-bottom:8px">Заметки:</p>
+    <div id="clientNotes" style="color:var(--text-light);font-size:13px">Загрузка...</div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <input id="noteInput" placeholder="Новая заметка..." style="flex:1;min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+      <button class="btn btn-primary btn-sm" onclick="addNote()">+</button>
+    </div>
+  `;
+  document.getElementById('detailFooter').innerHTML = '';
+  document.getElementById('detailModal').style.display = 'flex';
+
+  // Сохраняем имя клиента для заметок
+  window._currentClientName = name;
+  window._currentClientPhone = phone;
+  loadNotes(name);
+}
+
+async function loadNotes(name) {
+  try {
+    // Ищем telegram_id клиента по имени
+    const clients = await api(`/api/clients/search/${encodeURIComponent(name)}?token=${token}`);
+    const notesEl = document.getElementById('clientNotes');
+    if (!clients.length) { notesEl.innerHTML = 'Клиент не найден в базе'; return; }
+    const tgId = clients[0].telegram_id;
+    const notes = await api(`/api/clients/${tgId}/notes?token=${token}`);
+    if (!notes.length) { notesEl.innerHTML = 'Нет заметок'; return; }
+    notesEl.innerHTML = notes.map(n =>
+      `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--text-light)">${n.author} · ${new Date(n.created_at).toLocaleDateString('ru-RU')}</div>
+        <div>${n.text}</div>
+      </div>`
+    ).join('');
+  } catch(e) {
+    document.getElementById('clientNotes').innerHTML = 'Ошибка загрузки';
+  }
+}
+
+async function addNote() {
+  const input = document.getElementById('noteInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  try {
+    const clients = await api(`/api/clients/search/${encodeURIComponent(window._currentClientName)}?token=${token}`);
+    if (!clients.length) { alert('Клиент не найден'); return; }
+    const tgId = clients[0].telegram_id;
+
+    await fetch(`/api/clients/${tgId}/notes?token=${token}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text, author: masterName }),
+    });
+
+    input.value = '';
+    loadNotes(window._currentClientName);
+  } catch(e) {
+    alert('Ошибка сохранения');
+  }
+}
+
+// ── Финансы ──────────────────────────────────────────────
+
+async function loadFinance() {
+  try {
+    const el = document.getElementById('viewFinance');
+
+    // Получаем данные мастера из сессии
+    const session = await api(`/api/master/today?token=${token}`);
+
+    // Финансовая сводка
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
+    const fromStr = fmtLocal(from);
+    const toStr = fmtLocal(new Date());
+
+    let financeData;
+    try {
+      financeData = await api(`/api/finance/summary?from_date=${fromStr}&to_date=${toStr}&token=${token}`);
+    } catch(e) {
+      financeData = null;
+    }
+
+    // Получаем имя мастера из localStorage
+    const mName = localStorage.getItem('master_name') || '';
+
+    // Фильтруем данные по мастеру
+    let myRevenue = 0;
+    let myTransactions = 0;
+    if (financeData && financeData.by_master) {
+      const myData = financeData.by_master.find(m => m.master_name === mName);
+      if (myData) {
+        myRevenue = myData.total;
+        myTransactions = myData.count;
+      }
+    }
+
+    // Транзакции мастера
+    let myTxns = [];
+    try {
+      const allTxns = await api(`/api/transactions?from_date=${fromStr}&to_date=${toStr}&limit=50&token=${token}`);
+      myTxns = allTxns.filter(t => t.master_name === mName);
+    } catch(e) {}
+
+    let html = `
+      <div style="padding:16px">
+        <div style="font-weight:600;font-size:15px;margin-bottom:12px">Моя статистика (30 дней)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:24px;font-weight:700;color:var(--primary)">${myRevenue.toFixed(0)}</div>
+            <div style="font-size:12px;color:var(--text-light)">Доход (BYN)</div>
+          </div>
+          <div class="card" style="text-align:center;padding:16px">
+            <div style="font-size:24px;font-weight:700;color:var(--primary)">${myTransactions}</div>
+            <div style="font-size:12px;color:var(--text-light)">Транзакций</div>
+          </div>
+        </div>
+    `;
+
+    if (myTxns.length) {
+      html += `<div style="font-weight:600;font-size:14px;margin-bottom:8px">Последние записи</div>`;
+      myTxns.forEach(t => {
+        const d = new Date(t.created_at).toLocaleDateString('ru-RU');
+        const icon = t.payment_type === 'card' ? '💳' : '💵';
+        html += `
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+            <div>
+              <div style="font-weight:500">${t.service_name || 'Услуга'}</div>
+              <div style="color:var(--text-light);font-size:12px">${d} ${icon}</div>
+            </div>
+            <div style="font-weight:600;color:var(--primary)">${t.amount} BYN</div>
+          </div>`;
+      });
+    } else {
+      html += '<div style="color:var(--text-light);text-align:center;padding:16px">Нет транзакций за период</div>';
+    }
+
+    html += '</div>';
+    el.innerHTML = html;
+
+  } catch(e) {
+    document.getElementById('viewFinance').innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки</div>';
+  }
+}
+
+// ── Мастера ──────────────────────────────────────────────
+
+let allMastersData = [];
+let masterFilter = 'all';
+
+async function loadMasters() {
+  try {
+    const data = await api(`/api/masters-with-bookings?token=${token}`);
+    allMastersData = data.filter(m => m.name !== 'АДМИН');
+    renderMasters();
+  } catch(e) {
+    document.getElementById('viewMasters').innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки</div>';
+  }
+}
+
+function renderMasters() {
+  const el = document.getElementById('viewMasters');
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  
+  let html = `<div style="padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:600;font-size:15px">Мастера</div>
+      ${isAdmin ? '<button class="btn btn-primary btn-sm" onclick="showAddMaster()">+ Добавить</button>' : ''}
+    </div>
+    <input type="text" id="masterSearch" placeholder="Поиск мастера..." style="width:100%;min-height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px" oninput="filterMasters()">
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="btn btn-outline btn-sm ${masterFilter==='all'?'btn-primary':''}" onclick="setMasterFilter('all')">Все</button>
+      <button class="btn btn-outline btn-sm ${masterFilter==='active'?'btn-primary':''}" onclick="setMasterFilter('active')">С записями</button>
+    </div>`;
+
+  const search = document.getElementById('masterSearch')?.value?.toLowerCase() || '';
+  let filtered = allMastersData;
+  if (search) filtered = filtered.filter(m => m.name.toLowerCase().includes(search));
+  if (masterFilter === 'active') filtered = filtered.filter(m => m.active_count > 0);
+
+  filtered.forEach((m, i) => {
+    html += `<div class="card" style="margin-bottom:8px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer" onclick="toggleMasterBookings(${i})">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:15px">${m.name}</div>
+          <div style="font-size:12px;color:var(--text-light)">${m.specialization || 'Мастер'}</div>
+        </div>
+        <div style="text-align:center;min-width:50px">
+          <div style="font-size:20px;font-weight:700;color:var(--primary)">${m.total_bookings}</div>
+          <div style="font-size:10px;color:var(--text-light)">записей</div>
+        </div>
+        ${isAdmin ? `<div style="display:flex;gap:4px">
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();editMaster(${m.id},'${m.name}','${m.specialization||''}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteMaster(${m.id},'${m.name}')">🗑</button>
+        </div>` : ''}
+      </div>
+      <div id="masterBookings${i}" style="display:none;border-top:1px solid var(--border)">
+        <div style="padding:8px 12px;font-size:12px;color:var(--text-light)">
+          Активных: ${m.active_count} | Завершённых: ${m.completed_count} | Отменённых: ${m.cancelled_count}
+        </div>
+        ${m.bookings.length > 0 ? `
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="background:#fafafa">
+            <th style="padding:6px 8px;text-align:left">Дата</th>
+            <th style="padding:6px 8px;text-align:left">Время</th>
+            <th style="padding:6px 8px;text-align:left">Клиент</th>
+            <th style="padding:6px 8px;text-align:left">Услуга</th>
+          </tr></thead>
+          <tbody>
+            ${m.bookings.slice(0, 10).map(b => `
+              <tr style="border-top:1px solid var(--border)">
+                <td style="padding:6px 8px">${b.date || '—'}</td>
+                <td style="padding:6px 8px">${b.time || '—'}</td>
+                <td style="padding:6px 8px">${b.client_name || '—'}</td>
+                <td style="padding:6px 8px">${b.service_name || '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ${m.bookings.length > 10 ? '<div style="padding:8px;text-align:center;font-size:11px;color:var(--text-light)">Показано 10 из ' + m.bookings.length + '</div>' : ''}
+        ` : '<div style="padding:16px;text-align:center;color:var(--text-light);font-size:13px">Нет записей</div>'}
+      </div>
+    </div>`;
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function setMasterFilter(f) {
+  masterFilter = f;
+  renderMasters();
+}
+
+function filterMasters() {
+  renderMasters();
+}
+
+function toggleMasterBookings(i) {
+  const el = document.getElementById('masterBookings' + i);
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function showAddMaster() {
+  const name = prompt('Имя мастера:');
+  if (!name) return;
+  const spec = prompt('Специализация:', '');
+
+  await fetch('/api/masters', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: name, specialization: spec || '' }),
+  });
+
+  loadMasters();
+}
+
+async function editMaster(id, currentName, currentSpec) {
+  const name = prompt('Имя мастера:', currentName);
+  if (!name) return;
+  const spec = prompt('Специализация:', currentSpec);
+
+  await fetch(`/api/masters/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: name, specialization: spec || '' }),
+  });
+
+  loadMasters();
+}
+
+async function deleteMaster(id, name) {
+  if (!confirm(`Удалить мастера "${name}"?`)) return;
+
+  await fetch(`/api/masters/${id}`, { method: 'DELETE' });
+  loadMasters();
+}
+
+// ── Услуги ──────────────────────────────────────────────
+
+const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+
+async function loadServices() {
+  const el = document.getElementById('viewServices');
+  try {
+    const data = await api(`/api/services/grouped?token=${token}`);
+    if (!data.length) {
+      el.innerHTML = `<div style="padding:16px;color:var(--text-light)">Нет услуг
+        ${isAdmin ? '<br><button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addService()">+ Добавить</button>' : ''}</div>`;
+      return;
+    }
+    el.innerHTML = `
+      ${isAdmin ? '<div style="padding:8px 16px"><button class="btn btn-primary btn-sm" onclick="addService()">+ Добавить услугу</button></div>' : ''}
+      ${data.map(cat => `
+        <div style="margin:8px 16px;background:var(--card);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)">
+          <div style="padding:12px 16px;font-weight:600;font-size:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <div>
+              ${cat.title}
+              ${cat.note ? `<div style="font-size:12px;color:var(--text-light);font-weight:400;margin-top:2px">${cat.note}</div>` : ''}
+            </div>
+            ${isAdmin ? `<button class="btn btn-outline btn-sm" onclick="addServiceInCategory(${cat.index}, '${cat.title.replace(/'/g, "\\'")}')">+ Услуга</button>` : ''}
+          </div>
+          <div>
+            ${(cat.services || []).map(s => `
+              <div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04)">
+                <div style="flex:1;font-size:14px">${s.name}</div>
+                <div style="font-weight:600;font-size:14px;color:var(--primary);min-width:70px;text-align:right">${s.price || '—'}</div>
+                ${isAdmin ? `<div style="margin-left:8px">
+                  <button class="btn btn-outline btn-sm" onclick="editService(${s.id}, '${s.name.replace(/'/g, "\\'")}', '${(s.price||'').replace(/'/g, "\\'")}')">✏️</button>
+                </div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    `;
+  } catch(e) {
+    el.innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки</div>';
+  }
+}
+
+async function editService(id, currentName, currentPrice) {
+  const name = prompt('Название услуги:', currentName);
+  if (name === null) return;
+  const price = prompt('Цена:', currentPrice);
+  if (price === null) return;
+
+  await fetch(`/api/services/${id}?token=${token}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name, price }),
+  });
+  loadServices();
+}
+
+async function addService() {
+  const name = prompt('Название услуги:');
+  if (!name) return;
+  const price = prompt('Цена:');
+  if (price === null) return;
+
+  // Показываем выбор категории
+  const cats = await api(`/api/services/categories?token=${token}`);
+  const catList = cats.map(c => c.category_index + '. ' + c.category_title).join('\n');
+  const catIdx = prompt('Категория (номер):\n' + catList);
+  if (catIdx === null) return;
+
+  const cat = cats.find(c => c.category_index === parseInt(catIdx));
+  await fetch('/api/services?token=' + token, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      category_title: cat ? cat.category_title : cats[0].category_title,
+      category_note: cat ? (cat.category_note || '') : '',
+      category_index: parseInt(catIdx),
+      name, price,
+    }),
+  });
+  loadServices();
+}
+
+async function addServiceInCategory(catIndex, catTitle) {
+  const name = prompt('Название услуги:');
+  if (!name) return;
+  const price = prompt('Цена:');
+  if (price === null) return;
+
+  await fetch('/api/services?token=' + token, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      category_title: catTitle,
+      category_index: catIndex,
+      name, price,
+    }),
+  });
+  loadServices();
+}
+
+// ── Рассылка ──────────────────────────────────────────────
+
+let broadcastClients = [];
+let broadcastSegment = 'all';
+let broadcastSelected = new Set();
+
+function checkBroadcastAccess() {
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const bc = document.getElementById('moreBroadcast');
+  if (bc) bc.style.display = isAdmin ? '' : 'none';
+  // Финансы и Мастера — только для админов
+  const fin = document.getElementById('moreFinance');
+  if (fin) fin.style.display = isAdmin ? '' : 'none';
+  const mast = document.getElementById('moreMasters');
+  if (mast) mast.style.display = isAdmin ? '' : 'none';
+}
+
+async function loadBroadcast() {
+  checkBroadcastAccess();
+  const el = document.getElementById('viewBroadcast');
+  try {
+    const data = await api(`/api/clients?token=${token}`);
+    broadcastClients = data;
+    renderBroadcast();
+  } catch(e) {
+    el.innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки клиентов</div>';
+  }
+}
+
+function renderBroadcast() {
+  const el = document.getElementById('viewBroadcast');
+  const segments = [
+    {id: 'all', label: 'Все клиенты', icon: 'fa-users'},
+    {id: 'lost', label: 'Потерянные (60+ дн)', icon: 'fa-user-slash'},
+    {id: 'new', label: 'Новые (за месяц)', icon: 'fa-user-plus'},
+    {id: 'regular', label: 'Постоянные (3+ визита)', icon: 'fa-user-check'},
+    {id: 'manual', label: 'Выбрать вручную', icon: 'fa-hand-pointer'},
+  ];
+
+  let filtered = broadcastClients;
+  const today = new Date();
+  const cutoff60 = new Date(today - 60*24*60*60*1000).toISOString().slice(0,10);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0,10);
+
+  if (broadcastSegment === 'lost') {
+    filtered = broadcastClients.filter(c => !c.last_visit || c.last_visit < cutoff60);
+  } else if (broadcastSegment === 'new') {
+    filtered = broadcastClients.filter(c => c.last_visit >= monthStart);
+  } else if (broadcastSegment === 'manual') {
+    filtered = broadcastClients;
+  }
+
+  el.innerHTML = `
+    <div style="padding:16px">
+      <div style="font-weight:600;font-size:16px;margin-bottom:12px">📨 Рассылка клиентам</div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+        ${segments.map(s => `
+          <button class="btn btn-sm ${broadcastSegment===s.id?'btn-primary':'btn-outline'}"
+                  onclick="setBroadcastSegment('${s.id}')">
+            <i class="fa-solid ${s.icon}"></i> ${s.label}
+          </button>
+        `).join('')}
+      </div>
+
+      ${broadcastSegment === 'manual' ? `
+        <input type="text" id="broadcastSearch" placeholder="Поиск по имени/телефону..."
+               style="width:100%;min-height:40px;padding:0 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:8px"
+               oninput="filterBroadcastClients()">
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:8px">
+          Выбрано: <strong id="broadcastSelectedCount">${broadcastSelected.size}</strong> из ${broadcastClients.length}
+          <button class="btn btn-outline btn-sm" onclick="selectAllBroadcast()" style="margin-left:8px">Все</button>
+          <button class="btn btn-outline btn-sm" onclick="deselectAllBroadcast()">Нет</button>
+        </div>
+      ` : `
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:8px">
+          Получателей: <strong>${filtered.length}</strong>
+        </div>
+      `}
+
+      <div style="max-height:300px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:8px">
+        ${(broadcastSegment === 'manual' ? filtered : filtered.slice(0, 50)).map(c => `
+          <div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.04)">
+            ${broadcastSegment === 'manual' ? `
+              <input type="checkbox" ${broadcastSelected.has(c.telegram_id)?'checked':''}
+                     onchange="toggleBroadcastSelect(${c.telegram_id})" style="margin-right:8px">
+            ` : ''}
+            <div style="flex:1">
+              <div style="font-size:14px">${c.name || 'Без имени'}</div>
+              <div style="font-size:12px;color:var(--text-light)">${c.phone || '—'} | ${c.last_visit || 'нет визитов'}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="form-group">
+        <label>Текст сообщения</label>
+        <textarea id="broadcastText" rows="4" placeholder="Введите текст рассылки..."
+                  style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;resize:vertical"></textarea>
+      </div>
+
+      <button class="btn btn-primary" onclick="sendBroadcast()" style="width:100%">
+        📨 Отправить ${broadcastSegment === 'manual' ? 'выбранным' : 'всем по сегменту'}
+      </button>
+    </div>
+  `;
+}
+
+function setBroadcastSegment(seg) {
+  broadcastSegment = seg;
+  broadcastSelected.clear();
+  renderBroadcast();
+}
+
+function toggleBroadcastSelect(tgId) {
+  if (broadcastSelected.has(tgId)) broadcastSelected.delete(tgId);
+  else broadcastSelected.add(tgId);
+  const el = document.getElementById('broadcastSelectedCount');
+  if (el) el.textContent = broadcastSelected.size;
+}
+
+function selectAllBroadcast() {
+  broadcastClients.forEach(c => broadcastSelected.add(c.telegram_id));
+  renderBroadcast();
+}
+
+function deselectAllBroadcast() {
+  broadcastSelected.clear();
+  renderBroadcast();
+}
+
+function filterBroadcastClients() {
+  const q = document.getElementById('broadcastSearch')?.value?.toLowerCase() || '';
+  const items = document.querySelectorAll('#viewBroadcast [style*="border-bottom"]');
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(q) ? '' : 'none';
+  });
+}
+
+async function sendBroadcast() {
+  const text = document.getElementById('broadcastText')?.value?.trim();
+  if (!text) { alert('Введите текст сообщения'); return; }
+
+  let recipientCount = 0;
+  let body = {};
+
+  if (broadcastSegment === 'manual') {
+    if (broadcastSelected.size === 0) { alert('Выберите клиентов'); return; }
+    body = { client_ids: Array.from(broadcastSelected), text };
+    recipientCount = broadcastSelected.size;
+  } else {
+    body = { segment: broadcastSegment, text };
+    const today = new Date();
+    const cutoff60 = new Date(today - 60*24*60*60*1000).toISOString().slice(0,10);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0,10);
+    if (broadcastSegment === 'lost') recipientCount = broadcastClients.filter(c => !c.last_visit || c.last_visit < cutoff60).length;
+    else if (broadcastSegment === 'new') recipientCount = broadcastClients.filter(c => c.last_visit >= monthStart).length;
+    else recipientCount = broadcastClients.length;
+  }
+
+  if (!confirm(`Отправить сообщение ${recipientCount} клиентам?`)) return;
+
+  try {
+    const resp = await fetch(`/api/broadcast?token=${token}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const result = await resp.json();
+    alert(`Отправлено: ${result.sent || 0}, Ошибок: ${result.failed || 0}`);
+    document.getElementById('broadcastText').value = '';
+    broadcastSelected.clear();
+  } catch(e) {
+    alert('Ошибка отправки: ' + e.message);
+  }
+}
+
+// Показываем кнопку Рассылка при загрузке
+setTimeout(checkBroadcastAccess, 500);
+
+// ── Создание записи ──────────────────────────────────────
+
+function openCreate(date, time, preselectMaster) {
+  document.getElementById('cbDateTime').value = `${date} ${time}`;
+  document.getElementById('cbName').value = '';
+  document.getElementById('cbPhone').value = '';
+
+  // АДМИН: показываем выбор мастера
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const masterGroup = document.getElementById('cbMasterGroup');
+  const masterSelect = document.getElementById('cbMasterSelect');
+
+  if (isAdmin && scheduleData) {
+    masterGroup.style.display = '';
+    const masterNames = [...new Set(scheduleData.schedule.map(s => s.master_name))].filter(n => n !== 'АДМИН' && n !== 'Суперадмин');
+    masterSelect.innerHTML = masterNames.map(n =>
+      `<option value="${n}" ${n === preselectMaster ? 'selected' : ''}>${n}</option>`
+    ).join('');
+  } else {
+    masterGroup.style.display = 'none';
+  }
+
+  document.getElementById('createModal').style.display = 'flex';
+}
+
+function closeCreateModal() {
+  document.getElementById('createModal').style.display = 'none';
+}
+
+async function submitBooking() {
+  const dt = document.getElementById('cbDateTime').value.split(' ');
+  const name = document.getElementById('cbName').value.trim();
+  const phone = document.getElementById('cbPhone').value.trim();
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const selectedMaster = isAdmin ? document.getElementById('cbMasterSelect').value : masterName;
+
+  if (!name) { alert('Введите имя клиента'); return; }
+  if (!dt[0] || !dt[1]) { alert('Ошибка: не указано время'); return; }
+
+  let res;
+  try {
+    res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        master_name: selectedMaster,
+        date: dt[0],
+        time: dt[1],
+        client_name: name,
+        phone: phone,
+      }),
+    });
+  } catch(e) {
+    alert('Ошибка сети: ' + e.message);
+    return;
+  }
+
+  if (res.ok) {
+    closeCreateModal();
+    alert('Запись создана! ' + dt[0] + ' ' + dt[1]);
+    try {
+      if (isAdmin) { await loadAdminBookings(); }
+      else { await loadSchedule(); }
+    } catch(e) { console.error('Refresh error:', e); }
+  } else {
+    let msg = 'Ошибка';
+    try { const err = await res.json(); msg = err.detail || msg; } catch(e) {}
+    alert(msg);
+  }
+}
+
+// ── Детали записи ────────────────────────────────────────
+
+function showDetail(id) {
+  const booking = scheduleData.bookings.find(b => b.id === id);
+  if (!booking) return;
+  window._editBookingId = id;
+
+  const bDate = new Date(booking.date + 'T00:00:00');
+  const bDow = bDate.getDay() === 0 ? 6 : bDate.getDay() - 1;
+  const bSlots = getSalonSlots(bDow);
+  let timeOpts = '';
+  bSlots.forEach(t => {
+    timeOpts += `<option value="${t}" ${t === booking.time ? 'selected' : ''}>${t}</option>`;
+  });
+
+  const el = document.getElementById('detailBody');
+  el.innerHTML = `
+    <div style="margin-bottom:12px">
+      <span class="badge ${booking.confirmed ? 'badge-confirmed' : 'badge-new'}">${booking.confirmed ? 'Подтверждена' : 'Новая'}</span>
+    </div>
+    <div class="form-group">
+      <label>Дата</label>
+      <input type="date" id="editDate" value="${booking.date}">
+    </div>
+    <div class="form-group">
+      <label>Время</label>
+      <select id="editTime">${timeOpts}</select>
+    </div>
+    <div class="form-group">
+      <label>Клиент</label>
+      <input id="editClient" value="${booking.client_name || ''}" placeholder="Имя клиента">
+    </div>
+  `;
+
+  const footer = document.getElementById('detailFooter');
+  let btns = `<button class="btn btn-primary btn-sm" onclick="saveBooking()">💾 Сохранить</button>`;
+  if (!booking.confirmed) btns += ` <button class="btn btn-info btn-sm" onclick="confirmB(${booking.id});closeDetailModal()">✅</button>`;
+  btns += ` <button class="btn btn-danger btn-sm" onclick="cancelB(${booking.id});closeDetailModal()">❌</button>`;
+  footer.innerHTML = btns;
+
+  document.getElementById('detailModal').style.display = 'flex';
+}
+
+function closeDetailModal() {
+  document.getElementById('detailModal').style.display = 'none';
+}
+
+async function saveBooking() {
+  const id = window._editBookingId;
+  const data = {
+    date: document.getElementById('editDate').value,
+    time: document.getElementById('editTime').value,
+    client_name: document.getElementById('editClient').value,
+  };
+
+  const res = await fetch(`/api/bookings/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  });
+
+  if (res.ok) {
+    closeDetailModal();
+    loadSchedule();
+  } else {
+    alert('Ошибка сохранения');
+  }
+}
+
+// ── Действия ─────────────────────────────────────────────
+
+async function confirmB(id) {
+  await fetch(`/api/bookings/${id}/confirm`, { method: 'POST' });
+  loadToday();
+  loadWeek();
+  loadSchedule();
+}
+
+async function cancelB(id) {
+  if (!confirm('Отменить запись?')) return;
+  await fetch(`/api/bookings/${id}/cancel`, { method: 'POST' });
+  loadToday();
+  loadWeek();
+  loadSchedule();
+}
+
+// ── Админ: управление расписанием мастера ──
+
+function openMasterScheduleModal(masterName) {
+  document.getElementById('scheduleModalTitle').textContent = 'Расписание: ' + masterName;
+  document.getElementById('schedMasterName').value = masterName;
+  document.getElementById('schedDate').value = window._adminDate || new Date().toISOString().split('T')[0];
+  document.getElementById('schedDayOff').checked = false;
+  document.getElementById('schedSlotsSection').style.display = '';
+  loadSchedModalSlots();
+  document.getElementById('scheduleModal').style.display = '';
+}
+
+function closeScheduleModal() {
+  document.getElementById('scheduleModal').style.display = 'none';
+}
+
+async function loadSchedModalSlots() {
+  const masterName = document.getElementById('schedMasterName').value;
+  const date = document.getElementById('schedDate').value;
+  if (!masterName || !date) return;
+
+  try {
+    const r = await fetch(`/api/admin/date-schedule?token=${token}&master_name=${encodeURIComponent(masterName)}&date=${date}`);
+    const data = await r.json();
+
+    const isOff = !!data.is_day_off;
+    document.getElementById('schedDayOff').checked = isOff;
+    document.getElementById('schedSlotsSection').style.display = isOff ? 'none' : '';
+
+    const currentSlots = data.time_slots ? data.time_slots.split(',').map(h => h.trim()) : [];
+    renderSchedSlots(currentSlots);
+  } catch (e) {
+    console.error('loadSchedModalSlots error:', e);
+    renderSchedSlots([]);
+  }
+}
+
+function renderSchedSlots(selectedSlots) {
+  const grid = document.getElementById('schedSlotsGrid');
+  const dateVal = document.getElementById('schedDate').value;
+  let dow = 0;
+  if (dateVal) {
+    const d = new Date(dateVal + 'T00:00:00');
+    dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  }
+  const allSlots = getSalonSlots(dow);
+
+  grid.innerHTML = allSlots.map(t => {
+    const checked = selectedSlots.includes(t);
+    return `<label style="display:flex;align-items:center;gap:3px;padding:5px 9px;border:2px solid ${checked ? '#5A52D5' : 'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;background:${checked ? '#6C63FF' : 'var(--card)'};color:${checked ? '#fff' : 'inherit'}">
+      <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} style="display:none" onchange="this.parentElement.style.borderColor=this.checked?'#5A52D5':'var(--border)';this.parentElement.style.background=this.checked?'#6C63FF':'var(--card)';this.parentElement.style.color=this.checked?'#fff':'inherit';this.parentElement.style.fontWeight=this.checked?'600':'400'">
+      ${t}
+    </label>`;
+  }).join('');
+}
+
+function selectSchedAll() {
+  document.querySelectorAll('#schedSlotsGrid input[type="checkbox"]').forEach(cb => {
+    cb.checked = true;
+    cb.parentElement.style.borderColor = '#5A52D5';
+    cb.parentElement.style.background = '#6C63FF';
+    cb.parentElement.style.color = '#fff';
+    cb.parentElement.style.fontWeight = '600';
+  });
+}
+
+function deselectSchedAll() {
+  document.querySelectorAll('#schedSlotsGrid input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+    cb.parentElement.style.borderColor = 'var(--border)';
+    cb.parentElement.style.background = 'var(--card)';
+    cb.parentElement.style.color = 'inherit';
+    cb.parentElement.style.fontWeight = '400';
+  });
+}
+
+function toggleSchedDayOff() {
+  const isOff = document.getElementById('schedDayOff').checked;
+  document.getElementById('schedSlotsSection').style.display = isOff ? 'none' : '';
+}
+
+async function saveSchedModal() {
+  const masterName = document.getElementById('schedMasterName').value;
+  const date = document.getElementById('schedDate').value;
+  const isDayOff = document.getElementById('schedDayOff').checked;
+
+  let slots = [];
+  if (!isDayOff) {
+    document.querySelectorAll('#schedSlotsGrid input[type="checkbox"]:checked').forEach(cb => {
+      slots.push(cb.value);
+    });
+  }
+
+  await fetch(`/api/admin/date-schedule?token=${token}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      master_name: masterName,
+      date: date,
+      time_slots: slots,
+      is_day_off: isDayOff
+    }),
+  });
+
+  closeScheduleModal();
+  loadAdminBookings();
+}
+
+
+// ── Пользователи (super_admin) ───────────────────────────
+
+const ROLE_LABELS = {
+  super_admin: 'Создатель',
+  director: 'Администратор',
+  master_edit: 'Мастер',
+};
+
+const ROLE_OPTIONS = [
+  { value: 'master_edit', label: 'Мастер' },
+  { value: 'director', label: 'Администратор' },
+  { value: 'super_admin', label: 'Создатель' },
+];
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showRoleModal(title, currentRole, callback) {
+  let options = ROLE_OPTIONS.map(r =>
+    `<option value="${r.value}" ${r.value === currentRole ? 'selected' : ''}>${r.label}</option>`
+  ).join('');
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `<div style="background:var(--card);border-radius:12px;padding:20px;max-width:320px;width:100%">
+    <div style="font-weight:600;font-size:16px;margin-bottom:16px">${title}</div>
+    <select id="roleSelect" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px">${options}</select>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline btn-sm" onclick="this.closest('div[style*=fixed]').remove()">Отмена</button>
+      <button class="btn btn-primary btn-sm" id="roleConfirm">OK</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#roleConfirm').onclick = () => {
+    const val = overlay.querySelector('#roleSelect').value;
+    overlay.remove();
+    callback(val);
+  };
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+}
+
+async function loadUsers() {
+  const el = document.getElementById('viewUsers');
+  try {
+    const users = await api(`/api/users?token=${token}`);
+    let html = `<div style="padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0">Пользователи</h3>
+        <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ Добавить</button>
+      </div>`;
+    users.forEach(u => {
+      html += `<div class="card" style="margin-bottom:8px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.name)}</div>
+          <div style="font-size:12px;color:var(--text-light)">${esc(u.phone || '—')}</div>
+          <div style="font-size:12px;color:var(--primary);margin-top:2px">${ROLE_LABELS[u.role] || u.role}</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="editUser(${u.id},'${esc(u.name)}','${esc(u.phone||'')}','${u.role}')">✏️</button>
+      </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div class="card" style="margin:16px;color:var(--danger)">Ошибка загрузки</div>';
+  }
+}
+
+function showAddUser() {
+  const name = prompt('Имя:');
+  if (!name) return;
+  const phone = prompt('Телефон (+375...):');
+  if (!phone) return;
+  showRoleModal('Выберите роль', 'master_edit', (role) => {
+    fetch(`/api/users?token=${token}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, phone, role }),
+    }).then(r => r.json()).then(d => {
+      if (d.status === 'ok') loadUsers();
+      else alert(d.detail || 'Ошибка');
+    });
+  });
+}
+
+function editUser(id, name, phone, role) {
+  showRoleModal(`Роль для ${name}`, role, (newRole) => {
+    if (newRole === role) return;
+    fetch(`/api/users/${id}?token=${token}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ role: newRole }),
+    }).then(r => r.json()).then(d => {
+      if (d.status === 'ok') loadUsers();
+      else alert(d.detail || 'Ошибка');
+    });
+  });
+}
+
+// ── Инициализация ────────────────────────────────────────
+
+loadSalonHours().then(() => { loadToday(); });
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
+</script>
+
+</body>
+</html>

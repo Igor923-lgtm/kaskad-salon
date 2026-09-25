@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход — {{ salon_name }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-card { background: #161625; border: 1px solid rgba(255,255,255,0.06); padding: 40px 32px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 360px; text-align: center; }
+    h1 { font-size: 24px; margin-bottom: 8px; background: linear-gradient(135deg, #6C63FF, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; }
+    p { color: #8888a0; font-size: 14px; margin-bottom: 24px; }
+    input { width: 100%; padding: 12px 16px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; font-size: 15px; margin-bottom: 16px; outline: none; background: rgba(255,255,255,0.05); color: #e8e8f0; }
+    input:focus { border-color: #6C63FF; box-shadow: 0 0 0 3px rgba(108,99,255,0.2); }
+    button { width: 100%; padding: 12px; background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(108,99,255,0.3); transition: all 0.2s; }
+    button:hover { box-shadow: 0 6px 25px rgba(108,99,255,0.4); transform: translateY(-1px); }
+    .error { color: #FF6B6B; font-size: 13px; margin-bottom: 12px; }
+    .error.rate { color: #FFB86B; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h1>{{ salon_name }}</h1>
+    <p>Введите пароль для входа</p>
+    {% if error %}<div class="error{% if 'попыток' in error or 'Подождите' in error %} rate{% endif %}">{{ error }}</div>{% endif %}
+    <form method="POST" action="/login">
+      <input type="password" name="password" placeholder="Пароль" autofocus required>
+      <button type="submit">Войти</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>{{ "Занятость" if org_type == "coworking" else "Шахматка" }} — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+  <style>
+    .modal { border-radius: 20px !important; overflow-x: hidden !important; }
+    .modal-body { overflow-x: hidden !important; }
+    .form-group input, .form-group select { width: 100%; box-sizing: border-box; }
+    /* Выходной: отдельный цвет ячеек + подпись */
+    .schedule-table .time-col.dayoff {
+      background: #eceff1 !important;
+      color: #90a4ae !important;
+      text-align: center;
+      font-size: 11px;
+      font-style: italic;
+      font-weight: 500;
+      cursor: default !important;
+      pointer-events: none;
+    }
+    .schedule-table tr.row-dayoff .master-col {
+      background: #f5f6f7 !important;
+      opacity: 0.8;
+    }
+    html:not(.light-theme) .schedule-table .time-col.dayoff {
+      background: rgba(255,255,255,0.06) !important;
+      color: #666680 !important;
+    }
+    html:not(.light-theme) .schedule-table tr.row-dayoff .master-col {
+      background: rgba(255,255,255,0.04) !important;
+    }
+
+  </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+<div class="header">
+  <h1>{{ "Занятость" if org_type == "coworking" else "Шахматка" }}</h1>
+  <div style="font-size:12px;color:var(--text-light);margin:-4px 0 8px">
+    {{ "Колонки — пространства. Аренда = блок слотов. Данные салона красоты здесь не показываются." if org_type == "coworking" else "Колонки — мастера салона. Блоки ковopкинга и админы не отображаются." }}
+  </div>
+  <div class="date-nav" style="flex-wrap:wrap;gap:4px">
+    <button class="btn btn-outline btn-icon btn-sm" onclick="jumpDays(-30)" title="Месяц назад">◀◀</button>
+    <button class="btn btn-outline btn-icon btn-sm" onclick="jumpDays(-7)" title="Неделя назад">◀</button>
+    <button class="btn btn-outline btn-icon btn-sm" onclick="prevDay()" title="День назад">◁</button>
+    <span class="date" id="currentDate" style="cursor:pointer;min-width:140px" onclick="document.getElementById('datePicker').showPicker()"></span>
+    <button class="btn btn-outline btn-icon btn-sm" onclick="nextDay()" title="День вперёд">▷</button>
+    <button class="btn btn-outline btn-icon btn-sm" onclick="jumpDays(7)" title="Неделя вперёд">▶</button>
+    <button class="btn btn-outline btn-icon btn-sm" onclick="jumpDays(30)" title="Месяц вперёд">▶▶</button>
+    <button class="btn btn-outline btn-sm" onclick="goToday()">Сегодня</button>
+    <input type="date" id="datePicker" style="min-height:32px;padding:0 6px;border:1px solid var(--border);border-radius:6px;font-size:13px;width:0;opacity:0;position:absolute" onchange="goToDate(this.value)">
+  </div>
+</div>
+
+<div class="tabs" id="masterTabs"></div>
+
+<div class="stats-grid" id="statsGrid"></div>
+
+<div style="padding: 0 20px 20px;">
+  <div class="schedule-container">
+    <table class="schedule-table" id="scheduleTable">
+      <thead id="scheduleHead"></thead>
+      <tbody id="scheduleBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Модалка создания записи -->
+<div class="modal-overlay" id="createModal" style="display:none" onclick="if(event.target===this)closeCreateModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Новая запись</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeCreateModal()">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-x:hidden">
+      <div class="form-group">
+        <label>{{ "Пространство" if org_type == "coworking" else "Мастер" }}</label>
+        <input id="cbMaster" readonly>
+      </div>
+      <div class="form-group">
+        <label>Дата и время</label>
+        <input id="cbDateTime" readonly>
+      </div>
+      <div class="form-group">
+        <label>Услуга</label>
+        <select id="cbService" onchange="updateServiceDurationHint()"></select>
+      </div>
+      <div class="form-group" id="cbDurationHint" style="display:none">
+        <label>Длительность</label>
+        <div id="cbDurationText" style="padding:8px 0;font-weight:600;color:var(--primary)"></div>
+      </div>
+      <div class="form-group">
+        <label>Имя клиента</label>
+        <input id="cbName" placeholder="Имя">
+      </div>
+      <div class="form-group">
+        <label>Телефон</label>
+        <input id="cbPhone" placeholder="+375...">
+      </div>
+      <div class="form-group">
+        <label>Цена</label>
+        <input id="cbPrice" placeholder="150">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCreateModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="submitBooking()">Записать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка деталей записи -->
+<div class="modal-overlay" id="detailModal" style="display:none" onclick="if(event.target===this)closeDetailModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Запись</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeDetailModal()">✕</button>
+    </div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="modal-footer" id="detailFooter"></div>
+  </div>
+</div>
+
+<!-- Модалка расписания мастера -->
+<div class="modal-overlay" id="scheduleModal" style="display:none" onclick="if(event.target===this)closeScheduleModal()">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h2 id="scheduleModalTitle">{{ "Расписание пространства" if org_type == "coworking" else "Расписание мастера" }}</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeScheduleModal()">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-x:hidden">
+      <input type="hidden" id="schedMasterName">
+      <div class="form-group">
+        <label>Дата</label>
+        <input type="date" id="schedDate" onchange="loadSchedModalSlots()">
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="schedDayOff" onchange="toggleSchedDayOff()"> Выходной день
+        </label>
+      </div>
+      <div id="schedSlotsSection" style="margin-top:12px">
+        <label style="font-weight:600;font-size:13px;margin-bottom:8px;display:block">Свободные окошки:</label>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button class="btn btn-outline btn-sm" onclick="selectSchedAll()">Все</button>
+          <button class="btn btn-outline btn-sm" onclick="deselectSchedAll()">Нет</button>
+        </div>
+        <div id="schedSlotsGrid" style="display:flex;flex-wrap:wrap;gap:4px;max-height:300px;overflow-y:auto;overflow-x:hidden"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeScheduleModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveSchedModal()">💾 Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Kill Service Worker cache — гарантия свежих данных
+if ('caches' in window) { caches.keys().then(function(keys) { keys.forEach(function(k) { caches.delete(k); }); }); }
+if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(regs) { regs.forEach(function(r) { r.unregister(); }); }); }
+
+const DEFAULT_SALON_HOURS = {"0":[10,21],"1":[10,21],"2":[10,21],"3":[10,21],"4":[10,21],"5":[11,20],"6":[11,17]};
+let SALON_HOURS = {};
+let HOURS = [];
+
+async function loadSalonHours() {
+  try {
+    const r = await fetch('/api/salon-hours');
+    if (r.ok) { SALON_HOURS = await r.json(); }
+    else { SALON_HOURS = DEFAULT_SALON_HOURS; }
+  } catch(e) { SALON_HOURS = DEFAULT_SALON_HOURS; }
+  updateHoursForDate(currentDate);
+}
+
+function getSalonSlots(dow) {
+  const h = SALON_HOURS[String(dow)] || DEFAULT_SALON_HOURS[String(dow)];
+  if (!h) return [];
+  const slots = [];
+  for (let hr = h[0]; hr < h[1]; hr++) {
+    for (let m = 0; m < 60; m += 15) {
+      slots.push(`${String(hr).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    }
+  }
+  return slots;
+}
+
+function getSalonHourRange(dow) {
+  const h = SALON_HOURS[String(dow)] || DEFAULT_SALON_HOURS[String(dow)];
+  if (!h) return [10, 21];
+  return h;
+}
+
+function updateHoursForDate(d) {
+  const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  const [startH, endH] = getSalonHourRange(dow);
+  HOURS = [];
+  for (let h = startH; h < endH; h++) HOURS.push(`${String(h).padStart(2,'0')}:00`);
+}
+
+let currentDate = new Date();
+let masters = [];
+const IS_COW = {{ 'true' if org_type == 'coworking' else 'false' }};
+let bookings = [];
+let services = [];
+let dayOffMap = {}; // master_name → true (выходной на текущую дату)
+let selectedMaster = null; // null = все
+
+const COLORS = {
+  0: '#FFF8E1', // новая (нет confirmed)
+  1: '#E8F5E9', // подтверждена
+};
+
+function fmt(d) {
+  return d.toISOString().split('T')[0];
+}
+
+function fmtRu(d) {
+  const days = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+async function load() {
+  const [m, s] = await Promise.all([
+    fetch('/api/masters?exclude_admins=1').then(r => r.json()),
+    fetch('/api/services').then(r => r.json()),
+  ]);
+  masters = m;
+  services = s;
+  renderTabs();
+  loadDay();
+}
+
+async function loadDay() {
+  const date = fmt(currentDate);
+  document.getElementById('currentDate').textContent = fmtRu(currentDate);
+  const picker = document.getElementById('datePicker');
+  if (picker) picker.value = fmt(currentDate);
+
+  updateHoursForDate(currentDate);
+
+  let url = `/api/bookings?date=${date}`;
+  bookings = await fetch(url).then(r => r.json()).catch(() => []);
+  try {
+    const r = await fetch(`/api/schedule/dayoff?date=${date}`);
+    dayOffMap = r.ok ? await r.json() : {};
+  } catch (e) {
+    dayOffMap = {};
+  }
+
+  // Табы могли пополниться виртуальными именами из броней бота
+  renderTabs();
+  renderTable();
+}
+
+function renderTabs() {
+  const el = document.getElementById('masterTabs');
+  let html = `<button class="tab ${selectedMaster===null?'active':''}" onclick="selectMaster(null)">Все</button>`;
+  masters.filter(m => m.name !== 'АДМИН').forEach(m => {
+    html += `<button class="tab ${selectedMaster===m.name?'active':''}" onclick="selectMaster('${m.name}')">${m.name}</button>`;
+  });
+  // Виртуальные «пространства» из броней бота (master_name не в masters)
+  extraRowNames().forEach(name => {
+    const esc = name.replace(/'/g, "\\'");
+    html += `<button class="tab ${selectedMaster===name?'active':''}" onclick="selectMaster('${esc}')">${name}</button>`;
+  });
+  el.innerHTML = html;
+}
+
+function extraRowNames() {
+  const known = new Set(masters.map(m => m.name));
+  const names = [];
+  const isCow = {{ 'true' if org_type == 'coworking' else 'false' }};
+  (bookings || []).forEach(b => {
+    // в салоне не плодим строки из блоков ковopкинга
+    if (!isCow && b.booking_type === 'coworking') return;
+    if (b.master_name && !known.has(b.master_name) && b.master_name !== 'АДМИН' && !names.includes(b.master_name)) {
+      names.push(b.master_name);
+    }
+  });
+  return names;
+}
+
+function selectMaster(name) {
+  selectedMaster = name;
+  renderTabs();
+  renderTable();
+}
+
+function renderTable() {
+  const head = document.getElementById('scheduleHead');
+  const body = document.getElementById('scheduleBody');
+  const now = new Date();
+  const isToday = fmt(currentDate) === fmt(now);
+  const currentHour = now.getHours();
+
+  // Failsafe: если HOURS пуст — заполняем дефолтными часами
+  if (!HOURS.length) {
+    const dow = currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1;
+    updateHoursForDate(currentDate);
+    if (!HOURS.length) {
+      HOURS = ['10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+    }
+  }
+
+  const extras = extraRowNames().map(n => ({ name: n, _virtual: true }));
+  const allRows = [...masters.filter(m => m.name !== 'АДМИН'), ...extras];
+  const filteredMasters = selectedMaster
+    ? allRows.filter(m => m.name === selectedMaster)
+    : allRows;
+
+  // Head — часовые колонки
+  let headHtml = '<tr><th class="master-col">{{ "Пространство" if org_type == "coworking" else "Мастер" }}</th>';
+  HOURS.forEach(h => {
+    headHtml += `<th>${h}</th>`;
+  });
+  headHtml += '</tr>';
+  head.innerHTML = headHtml;
+
+  // Body
+  let bodyHtml = '';
+  filteredMasters.forEach(m => {
+    const isDayOff = !m._virtual && !!dayOffMap[m.name];
+    const rowCls = isDayOff ? ' class="row-dayoff"' : '';
+    if (m._virtual) {
+      bodyHtml += `<tr><td class="master-col">${m.name}</td>`;
+    } else {
+      bodyHtml += `<tr${rowCls}><td class="master-col" style="cursor:pointer" onclick="openMasterScheduleModal('${m.name}')">${m.name} ⚙️${isDayOff ? ' · выходной' : ''}</td>`;
+    }
+    HOURS.forEach(h => {
+      if (isDayOff) {
+        bodyHtml += `<td class="time-col dayoff">Выходной</td>`;
+        return;
+      }
+      // Запись занимает час, если любой из её покрытых 15-мин слотов попадает в этот час
+      const booking = bookings.find(b => {
+        if (b.master_name !== m.name) return false;
+        if (b.booking_type === 'coworking' && {{ 'false' if org_type == 'coworking' else 'true' }}) return false;
+        const n = (parseInt(b.duration_minutes, 10) || 0) > 0 ? Math.ceil(b.duration_minutes / 15) : 1;
+        for (let i = 0; i < n; i++) {
+          let [bh, bm] = b.time.split(':').map(Number);
+          const total = bh * 60 + bm + i * 15;
+          const hh = String(Math.floor(total / 60) % 24).padStart(2, '0');
+          if (hh === h.substring(0, 2)) return true;
+        }
+        return false;
+      });
+      const isPast = isToday && parseInt(h) < currentHour;
+      if (booking) {
+        const statusClass = booking.confirmed ? 'status-confirmed' : 'status-new';
+        const n = (parseInt(booking.duration_minutes, 10) || 0) > 0 ? Math.ceil(booking.duration_minutes / 15) : 1;
+        let [eh, em] = booking.time.split(':').map(Number);
+        const endTotal = eh * 60 + em + n * 15;
+        const endT = `${String(Math.floor(endTotal / 60) % 24).padStart(2, '0')}:${String(endTotal % 60).padStart(2, '0')}`;
+        const timeLabel = n > 1 ? `${booking.time}–${endT}` : booking.time;
+        bodyHtml += `<td class="time-col booked ${statusClass}" onclick="showDetail(${booking.id})">
+          <div class="booking-info">
+            <div class="client">${booking.client_name || '—'}</div>
+            <div class="service">${timeLabel} ${booking.service_name || ''}</div>
+          </div>
+        </td>`;
+      } else {
+        const cls = isPast ? 'past' : 'empty';
+        if (m._virtual) {
+          bodyHtml += `<td class="time-col ${cls}"></td>`;
+        } else {
+          bodyHtml += `<td class="time-col ${cls}" ${isPast ? '' : `onclick="openCreate('${m.name}','${h}')"`}></td>`;
+        }
+      }
+    });
+    bodyHtml += '</tr>';
+  });
+  body.innerHTML = bodyHtml;
+}
+
+function prevDay() { currentDate.setDate(currentDate.getDate() - 1); loadDay(); }
+function nextDay() { currentDate.setDate(currentDate.getDate() + 1); loadDay(); }
+function goToday() { currentDate = new Date(); loadDay(); }
+function jumpDays(days) { currentDate.setDate(currentDate.getDate() + days); loadDay(); }
+function goToDate(dateStr) {
+  if (dateStr) {
+    currentDate = new Date(dateStr + 'T00:00:00');
+    loadDay();
+  }
+}
+
+// ── Создание записи ──────────────────────
+
+function openCreate(masterName, time) {
+  document.getElementById('cbMaster').value = masterName;
+  document.getElementById('cbDateTime').value = `${fmt(currentDate)} ${time}`;
+  document.getElementById('cbName').value = '';
+  document.getElementById('cbPhone').value = '';
+
+  const sel = document.getElementById('cbService');
+  sel.innerHTML = '<option value="">— выбрать —</option>';
+  services.forEach(s => {
+    const durNote = s.duration_minutes > 0 ? `, ${s.duration_minutes} мин` : '';
+    sel.innerHTML += `<option value="${s.name}" data-dur="${s.duration_minutes || 0}">${s.name} — ${s.price} BYN${durNote}</option>`;
+  });
+  updateServiceDurationHint();
+
+  document.getElementById('createModal').style.display = 'flex';
+}
+
+function fmtDurMin(d) {
+  const mins = d > 0 ? Math.ceil(d / 15) * 15 : 15;
+  if (mins < 60) return mins + ' мин';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h} ч ${m} мин` : `${h} ч`;
+}
+
+function updateServiceDurationHint() {
+  const sel = document.getElementById('cbService');
+  const opt = sel.selectedOptions[0];
+  const hint = document.getElementById('cbDurationHint');
+  const text = document.getElementById('cbDurationText');
+  if (!opt || !opt.value) {
+    hint.style.display = 'none';
+    return;
+  }
+  const dur = parseInt(opt.getAttribute('data-dur') || '0', 10);
+  text.textContent = `≈ ${fmtDurMin(dur)} (окно блокируется целиком)`;
+  hint.style.display = '';
+}
+
+function closeCreateModal() {
+  document.getElementById('createModal').style.display = 'none';
+}
+
+async function submitBooking() {
+  const master = document.getElementById('cbMaster').value;
+  const dt = document.getElementById('cbDateTime').value.split(' ');
+  const service = document.getElementById('cbService').value;
+  const name = document.getElementById('cbName').value;
+  const phone = document.getElementById('cbPhone').value;
+
+  if (!name) { alert('Введите имя клиента'); return; }
+
+  let res;
+  try {
+    res = await fetch('/api/bookings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        master_name: master,
+        date: dt[0],
+        time: dt[1],
+        client_name: name,
+        phone: phone,
+        service_name: service,
+        price: document.getElementById('cbPrice').value,
+      }),
+    });
+  } catch(e) {
+    alert('Ошибка сети: ' + e.message);
+    return;
+  }
+
+  if (res.ok) {
+    closeCreateModal();
+    showSavedToast();
+    loadDay();
+  } else {
+    let msg = 'Ошибка';
+    try { const err = await res.json(); msg = err.detail || msg; } catch(e) {}
+    alert(msg);
+  }
+}
+
+function showSavedToast() {
+  let el = document.getElementById('pageSaved');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pageSaved';
+    el.className = 'saved';
+    el.textContent = '✓ Запись создана';
+    document.body.appendChild(el);
+  }
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2500);
+}
+
+// ── Детали записи ─────────────────────────
+
+function showDetail(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  window._editBookingId = id;
+
+  // Генерируем options для мастеров / пространств
+  let masterOpts = masters.map(m =>
+    `<option value="${m.name}" ${m.name === b.master_name ? 'selected' : ''}>${m.name}</option>`
+  ).join('');
+
+  // Генерируем options для времени (15-мин слоты по часам салона)
+  const bDate = new Date(b.date + 'T00:00:00');
+  const bDow = bDate.getDay() === 0 ? 6 : bDate.getDay() - 1;
+  const bSlots = getSalonSlots(bDow);
+  let timeOpts = '';
+  bSlots.forEach(t => {
+    timeOpts += `<option value="${t}" ${t === b.time ? 'selected' : ''}>${t}</option>`;
+  });
+
+  const el = document.getElementById('detailBody');
+  el.innerHTML = `
+    <div style="margin-bottom:12px">
+      <span class="badge ${b.confirmed ? 'badge-confirmed' : 'badge-new'}">${b.confirmed ? 'Подтверждена' : 'Новая'}</span>
+    </div>
+    <div class="form-group">
+      <label>{{ "Пространство" if org_type == "coworking" else "Мастер" }}</label>
+      <select id="editMaster">${masterOpts}</select>
+    </div>
+    <div class="form-group">
+      <label>Дата</label>
+      <input type="date" id="editDate" value="${b.date}">
+    </div>
+    <div class="form-group">
+      <label>Время</label>
+      <select id="editTime">${timeOpts}</select>
+    </div>
+    <div class="form-group">
+      <label>Клиент</label>
+      <input id="editClient" value="${b.client_name || ''}" placeholder="Имя клиента">
+    </div>
+  `;
+
+  const footer = document.getElementById('detailFooter');
+  let btns = `<button class="btn btn-primary btn-sm" onclick="saveBooking()">💾 Сохранить</button>`;
+  if (!b.confirmed) btns += ` <button class="btn btn-info btn-sm" onclick="confirmBooking(${b.id})">✅ Подтвердить</button>`;
+  btns += ` <button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">❌ Отменить</button>`;
+  footer.innerHTML = btns;
+
+  document.getElementById('detailModal').style.display = 'flex';
+}
+
+function closeDetailModal() {
+  document.getElementById('detailModal').style.display = 'none';
+}
+
+async function saveBooking() {
+  const id = window._editBookingId;
+  const data = {
+    master_name: document.getElementById('editMaster').value,
+    date: document.getElementById('editDate').value,
+    time: document.getElementById('editTime').value,
+    client_name: document.getElementById('editClient').value,
+  };
+
+  const res = await fetch(`/api/bookings/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  });
+
+  if (res.ok) {
+    closeDetailModal();
+    loadDay();
+  } else {
+    const err = await res.json();
+    alert(err.detail || 'Ошибка сохранения');
+  }
+}
+
+async function confirmBooking(id) {
+  await fetch(`/api/bookings/${id}/confirm`, { method: 'POST' });
+  closeDetailModal();
+  loadDay();
+}
+
+async function cancelBooking(id) {
+  if (!confirm('Отменить запись?')) return;
+  await fetch(`/api/bookings/${id}/cancel`, { method: 'POST' });
+  closeDetailModal();
+  loadDay();
+}
+
+// Статистика
+async function loadStats() {
+  try {
+    const s = await fetch('/api/stats').then(r => r.json());
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card"><div class="value">${s.today_bookings}</div><div class="label">Записей сегодня</div></div>
+      <div class="stat-card"><div class="value">${s.pending_bookings}</div><div class="label">Ожидают</div></div>
+      <div class="stat-card"><div class="value">${s.total_masters}</div><div class="label">{{ "Пространств" if org_type == "coworking" else "Мастеров" }}</div></div>
+      <div class="stat-card"><div class="value">${s.total_clients}</div><div class="label">Клиентов</div></div>
+    `;
+  } catch(e) {}
+}
+
+loadSalonHours().then(() => { load(); loadStats(); });
+
+// Авто-обновление каждые 30 секунд
+setInterval(() => { loadDay(); loadStats(); }, 30000);
+
+// ── Управление расписанием мастера ──
+
+function openMasterScheduleModal(masterName) {
+  document.getElementById('scheduleModalTitle').textContent = 'Расписание: ' + masterName;
+  document.getElementById('schedMasterName').value = masterName;
+  document.getElementById('schedDate').value = fmt(currentDate);
+  document.getElementById('schedDayOff').checked = false;
+  document.getElementById('schedSlotsSection').style.display = '';
+  loadSchedModalSlots();
+  document.getElementById('scheduleModal').style.display = '';
+}
+
+function closeScheduleModal() {
+  document.getElementById('scheduleModal').style.display = 'none';
+}
+
+async function loadSchedModalSlots() {
+  const masterName = document.getElementById('schedMasterName').value;
+  const date = document.getElementById('schedDate').value;
+  if (!masterName || !date) return;
+
+  try {
+    const r = await fetch(`/api/schedule/${encodeURIComponent(masterName)}`);
+    const schedule = await r.json();
+
+    const d = new Date(date + 'T00:00:00');
+    const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+    const daySched = schedule.find(s => s.day_of_week === dow);
+
+    // Явный выходной — только если is_day_off=1; нет строки = рабочий день
+    let isOff = !!(daySched && daySched.is_day_off);
+    try {
+      const dr = await fetch(`/api/admin/date-schedule?master_name=${encodeURIComponent(masterName)}&date=${date}`);
+      if (dr.ok) {
+        const ds = await dr.json();
+        if (ds && ds.is_day_off) isOff = true;
+      }
+    } catch (_) {}
+
+    document.getElementById('schedDayOff').checked = isOff;
+    document.getElementById('schedSlotsSection').style.display = isOff ? 'none' : '';
+
+    const currentSlots = daySched && daySched.selected_hours ? daySched.selected_hours.split(',').map(h => h.trim()) : [];
+    renderSchedSlots(currentSlots);
+  } catch (e) {
+    console.error('loadSchedModalSlots error:', e);
+    document.getElementById('schedDayOff').checked = false;
+    document.getElementById('schedSlotsSection').style.display = '';
+    renderSchedSlots([]);
+  }
+}
+
+function renderSchedSlots(selectedSlots) {
+  const grid = document.getElementById('schedSlotsGrid');
+  const dateVal = document.getElementById('schedDate').value;
+  let dow = 0;
+  if (dateVal) {
+    const d = new Date(dateVal + 'T00:00:00');
+    dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  }
+  const allSlots = getSalonSlots(dow);
+
+  grid.innerHTML = allSlots.map(t => {
+    const checked = selectedSlots.includes(t);
+    return `<label style="display:flex;align-items:center;gap:3px;padding:5px 9px;border:2px solid ${checked ? 'var(--primary)' : 'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px;font-weight:${checked ? '600' : '400'};background:${checked ? '#E8F5E9' : 'var(--card)'}">
+      <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} style="display:none" onchange="this.parentElement.style.borderColor=this.checked?'var(--primary)':'var(--border)';this.parentElement.style.background=this.checked?'#E8F5E9':'var(--card)';this.parentElement.style.fontWeight=this.checked?'600':'400'">
+      ${t}
+    </label>`;
+  }).join('');
+}
+
+function selectSchedAll() {
+  document.querySelectorAll('#schedSlotsGrid input[type="checkbox"]').forEach(cb => {
+    cb.checked = true;
+    cb.parentElement.style.borderColor = 'var(--primary)';
+    cb.parentElement.style.background = '#E8F5E9';
+    cb.parentElement.style.fontWeight = '600';
+  });
+}
+
+function deselectSchedAll() {
+  document.querySelectorAll('#schedSlotsGrid input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+    cb.parentElement.style.borderColor = 'var(--border)';
+    cb.parentElement.style.background = 'var(--card)';
+    cb.parentElement.style.fontWeight = '400';
+  });
+}
+
+function toggleSchedDayOff() {
+  const isOff = document.getElementById('schedDayOff').checked;
+  document.getElementById('schedSlotsSection').style.display = isOff ? 'none' : '';
+}
+
+async function saveSchedModal() {
+  const masterName = document.getElementById('schedMasterName').value;
+  const date = document.getElementById('schedDate').value;
+  const isDayOff = document.getElementById('schedDayOff').checked;
+
+  let slots = [];
+  if (!isDayOff) {
+    document.querySelectorAll('#schedSlotsGrid input[type="checkbox"]:checked').forEach(cb => {
+      slots.push(cb.value);
+    });
+  }
+
+  const dow = new Date(date + 'T00:00:00').getDay();
+  const dowAdj = dow === 0 ? 6 : dow - 1;
+
+  // Недельное расписание: выходной / рабочий день
+  await fetch(`/api/schedule/${encodeURIComponent(masterName)}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify([{
+      day_of_week: dowAdj,
+      start_time: '10:00',
+      end_time: '20:00',
+      is_day_off: isDayOff ? 1 : 0
+    }])
+  });
+
+  // Дата-уровень (виден боту и записи)
+  if (isDayOff) {
+    await fetch(`/api/admin/date-schedule`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        master_name: masterName,
+        date: date,
+        time_slots: [],
+        is_day_off: true
+      })
+    });
+  } else {
+    if (slots.length === 0) {
+      const d = new Date(date + 'T00:00:00');
+      const dDow = d.getDay() === 0 ? 6 : d.getDay() - 1;
+      slots = getSalonSlots(dDow);
+    }
+    await fetch(`/api/admin/date-schedule`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        master_name: masterName,
+        date: date,
+        time_slots: slots,
+        is_day_off: false
+      })
+    });
+  }
+
+  closeScheduleModal();
+  loadDay();
+}
+</script>
+
+</div><!-- /main-content -->
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ salon_name }}</title>
+  <style>
+    :root {
+      --primary: #6C63FF;
+      --primary-dark: #5A52D5;
+      --bg: #0f0f1a;
+      --card: #161625;
+      --text: #e8e8f0;
+      --text-light: #8888a0;
+      --border: rgba(255,255,255,0.08);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      padding: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; text-align: center; color: var(--text); }
+    .steps { display: flex; gap: 6px; margin-bottom: 16px; }
+    .step {
+      flex: 1; text-align: center; padding: 8px 4px; border-radius: 20px;
+      font-size: 12px; font-weight: 500; background: rgba(255,255,255,0.05); color: var(--text-light);
+    }
+    .step.active { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; }
+    .step.done { background: rgba(46,204,113,0.15); color: #2ECC71; }
+    .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .option {
+      background: var(--card); border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 14px; cursor: pointer; transition: all 0.2s;
+    }
+    .option:hover { border-color: var(--primary); background: rgba(108,99,255,0.05); }
+    .option.selected { border-color: var(--primary); background: rgba(108,99,255,0.1); }
+    .option .title { font-weight: 600; font-size: 15px; color: var(--text); }
+    .option .sub { color: var(--text-light); font-size: 13px; margin-top: 2px; }
+    .time-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 8px;
+      margin-bottom: 16px;
+    }
+    .time-slot {
+      min-height: 42px; display: flex; align-items: center; justify-content: center;
+      border: 2px solid var(--border); border-radius: 10px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; color: var(--text);
+    }
+    .time-slot:hover { border-color: var(--primary); background: rgba(108,99,255,0.05); }
+    .time-slot.selected { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; border-color: var(--primary); }
+    .time-slot.unavailable { opacity: 0.25; pointer-events: none; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--text-light); }
+    .form-group input, .form-group select {
+      width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--border);
+      border-radius: 10px; font-size: 14px; outline: none; background: rgba(255,255,255,0.05); color: var(--text);
+    }
+    .form-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(108,99,255,0.2); }
+    .btn {
+      display: block; width: 100%; min-height: 44px; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; box-shadow: 0 4px 15px rgba(108,99,255,0.3); }
+    .btn-primary:hover { box-shadow: 0 6px 25px rgba(108,99,255,0.4); transform: translateY(-1px); }
+    .btn-outline { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); margin-top: 8px; }
+    .success { text-align: center; padding: 24px 0; }
+    .success .icon { font-size: 48px; margin-bottom: 12px; }
+    .success h2 { color: var(--primary); }
+    .success p { color: var(--text-light); margin-top: 8px; }
+    .back { display: block; text-align: center; margin-top: 12px; color: var(--text-light); font-size: 13px; cursor: pointer; }
+    .back:hover { color: var(--primary); }
+    input[type="date"] { min-height: 42px; }
+  </style>
+</head>
+<body>
+
+<div id="widget">
+  <h2 id="wTitle">Онлайн-запись {{ salon_name }}</h2>
+  <div class="steps" id="wSteps">
+    <div class="step active" id="ws1">Пол</div>
+    <div class="step" id="ws2">Услуга</div>
+    <div class="step" id="ws3">Мастер</div>
+    <div class="step" id="ws4">Время</div>
+    <div class="step" id="ws5">Данные</div>
+  </div>
+
+  <!-- Шаг 1: Выбор пола -->
+  <div id="step1">
+    <div class="options">
+      <div class="option" onclick="selectGender('f')">
+        <div class="title">👩 Женщине</div>
+      </div>
+      <div class="option" onclick="selectGender('m')">
+        <div class="title">👨 Мужчине</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Шаг 2: Услуга -->
+  <div id="step2" style="display:none">
+    <div class="options" id="serviceList"></div>
+  </div>
+
+  <!-- Шаг 3: Мастер -->
+  <div id="step3" style="display:none">
+    <div class="options" id="masterList"></div>
+  </div>
+
+  <!-- Шаг 4: Дата и время -->
+  <div id="step4" style="display:none">
+    <div class="form-group">
+      <input type="date" id="bookDate" onchange="loadSlots()">
+    </div>
+    <div class="time-grid" id="timeGrid"></div>
+    <div id="selectedTime" style="display:none;text-align:center;font-weight:600;color:var(--primary);margin-bottom:12px">
+      Выбрано: <span id="selectedTimeText"></span>
+    </div>
+  </div>
+
+  <!-- Шаг 5: Подтверждение -->
+  <div id="step5" style="display:none">
+    <div class="form-group"><label>Имя</label><input id="bookName" placeholder="Ваше имя"></div>
+    <div class="form-group"><label>Телефон</label><input id="bookPhone" type="tel" placeholder="+375..."></div>
+    <div class="form-group"><label>Промокод (необязательно)</label><input id="bookPromo" placeholder="СКИДКА10"></div>
+    <div style="background:var(--card);border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:13px">
+      <div><strong>Услуга:</strong> <span id="cService"></span></div>
+      <div><strong>Мастер:</strong> <span id="cMaster"></span></div>
+      <div><strong>Дата:</strong> <span id="cDate"></span></div>
+      <div><strong>Время:</strong> <span id="cTime"></span></div>
+    </div>
+    <button class="btn btn-primary" onclick="submit()">Записаться</button>
+  </div>
+
+  <!-- Готово -->
+  <div id="step6" style="display:none">
+    <div class="success">
+      <div class="icon">✅</div>
+      <h2>Вы записаны!</h2>
+      <p id="doneText"></p>
+      <p style="font-size:12px;margin-top:8px">Мы свяжемся с вами для подтверждения</p>
+    </div>
+  </div>
+
+  <div class="back" id="backBtn" style="display:none" onclick="goBack()">← Назад</div>
+</div>
+
+<script>
+let step = 1, services = [], masters = [];
+let selGender = null, selService = null, selMaster = null, selDate = null, selTime = null;
+
+// Проверяем параметр ?master= в URL
+const urlMaster = new URLSearchParams(window.location.search).get('master');
+
+async function init() {
+  try {
+    [services, masters] = await Promise.all([
+      fetch('/api/services').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch('/api/masters').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+    ]);
+  } catch(e) {
+    document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:#e53935">Ошибка загрузки. Попробуйте обновить страницу.</p></div>';
+    return;
+  }
+
+  if (!services.length || !masters.length) {
+    document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:var(--text-light)">Услуги или мастера временно недоступны. Попробуйте позже.</p></div>';
+    return;
+  }
+
+  if (urlMaster) {
+    if (!masters.find(m => m.name === urlMaster)) {
+      document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:#e53935">Мастер не найден.</p></div>';
+      return;
+    }
+    selMaster = urlMaster;
+    setStep(4);
+    return;
+  }
+
+  document.getElementById('bookDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('bookDate').min = new Date().toISOString().split('T')[0];
+}
+
+function setStep(n) {
+  step = n;
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById(`step${i}`);
+    if (el) el.style.display = i === n ? '' : 'none';
+    const ws = document.getElementById(`ws${i}`);
+    if (ws) { ws.classList.toggle('active', i === n); ws.classList.toggle('done', i < n); }
+  }
+  document.getElementById('backBtn').style.display = (n > 1 && n < 6) ? '' : 'none';
+}
+
+function goBack() { if (step > 1) setStep(step - 1); }
+
+const BLOCK_MAP = {
+  'стрижка': '💇 Стрижка', 'окрашив': '🎨 Окрашивание', 'мелиров': '🎨 Окрашивание',
+  'блондир': '🎨 Окрашивание', 'тониров': '🎨 Окрашивание', 'смывка': '🎨 Окрашивание',
+  'укладк': '💆 Укладка', 'причёск': '💇‍♀️ Причёска', 'прическ': '💇‍♀️ Причёска',
+  'маникюр': '💅 Маникюр', 'педикюр': '🦶 Педикюр', 'массаж': '💆 Массаж',
+  'макияж': '💄 Макияж', 'брови': '👁 Брови и ресницы', 'ресниц': '👁 Брови и ресницы',
+  'ламинир': '👁 Брови и ресницы', 'тридинг': '👁 Брови и ресницы',
+  'косметолог': '🧖 Косметология', 'уходов': '🧖 Косметология', 'чистк': '🧖 Косметология',
+  'пилинг': '🧖 Косметология', 'мезотерап': '🧖 Косметология', 'карбокс': '🧖 Косметология',
+  'перманент': '💋 Перманентный макияж', 'реконструкц': '✨ Реконструкция волос',
+  'кератин': '✨ Реконструкция волос', 'наращив': '✨ Наращивание волос',
+  'депиляц': '🪒 Депиляция', 'шугаринг': '🪒 Депиляция',
+};
+
+function getBlockName(sectionTitle) {
+  const lower = sectionTitle.toLowerCase();
+  for (const [keyword, block] of Object.entries(BLOCK_MAP)) {
+    if (lower.includes(keyword)) return block;
+  }
+  return sectionTitle;
+}
+
+function selectGender(gender) {
+  selGender = gender;
+
+  const filtered = services.filter(s => {
+    const title = s.section.toLowerCase();
+    if (gender === 'm') {
+      return title.includes('мужск') || title.includes('стрижка') || title.includes('окрашив') || title.includes('барбер') || title.includes('массаж') || title.includes('маникюр') || title.includes('педикюр') || title.includes('косметолог');
+    } else {
+      return !title.includes('мужск') && !title.includes('барбер');
+    }
+  });
+
+  const byBlock = {};
+  filtered.forEach(s => {
+    const block = getBlockName(s.section);
+    if (!byBlock[block]) byBlock[block] = [];
+    byBlock[block].push(s);
+  });
+
+  let html = '';
+  let blockIdx = 0;
+  Object.keys(byBlock).forEach(block => {
+    const id = `block_${blockIdx++}`;
+    html += `<div class="option" onclick="toggleBlock('${id}')" style="cursor:pointer">
+      <div class="title">${block} <span style="float:right;color:var(--text-light);font-size:12px">${byBlock[block].length}</span></div>
+    </div>`;
+    html += `<div id="${id}" style="display:none">`;
+    byBlock[block].forEach(s => {
+      html += `<div class="option svc-multi" data-id="${s.id}" data-name="${s.name.replace(/"/g,'&quot;')}" data-price="${s.price}" data-dur="${s.duration_minutes||0}" onclick="toggleMultiService(this)" style="margin-left:12px;cursor:pointer">
+        <div class="title" style="font-size:14px">☐ ${s.name}</div>
+        <div class="sub">${s.price} BYN${s.duration_minutes > 0 ? ' · ' + fmtDur(s.duration_minutes) : ''}</div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  html += `<div style="padding:12px 14px;border-top:1px solid var(--border);margin-top:8px">
+    <div id="multiSummary" style="font-size:13px;color:var(--text-light);margin-bottom:8px">Выберите одну или несколько услуг</div>
+    <button class="btn btn-primary" style="width:100%" onclick="confirmMultiServices()">Далее</button>
+  </div>`;
+  document.getElementById('serviceList').innerHTML = html;
+  selectedMulti = [];
+  setStep(2);
+}
+
+let selectedMulti = [];
+
+function toggleMultiService(el) {
+  const id = el.getAttribute('data-id');
+  const idx = selectedMulti.findIndex(x => String(x.id) === String(id));
+  if (idx >= 0) {
+    selectedMulti.splice(idx, 1);
+    el.querySelector('.title').textContent = '☐ ' + el.getAttribute('data-name');
+    el.style.background = '';
+  } else {
+    selectedMulti.push({
+      id,
+      name: el.getAttribute('data-name'),
+      price: el.getAttribute('data-price'),
+      duration_minutes: parseInt(el.getAttribute('data-dur'), 10) || 0,
+    });
+    el.querySelector('.title').textContent = '☑ ' + el.getAttribute('data-name');
+    el.style.background = 'rgba(108,99,255,0.12)';
+  }
+  const totalDur = selectedMulti.reduce((a, s) => a + (s.duration_minutes > 0 ? Math.ceil(s.duration_minutes/15)*15 : 15), 0);
+  document.getElementById('multiSummary').textContent = selectedMulti.length
+    ? `Выбрано: ${selectedMulti.length}, ~${fmtDur(totalDur)}`
+    : 'Выберите одну или несколько услуг';
+}
+
+function confirmMultiServices() {
+  if (!selectedMulti.length) { alert('Выберите хотя бы одну услугу'); return; }
+  if (selectedMulti.length === 1) {
+    selectService(selectedMulti[0].name, selectedMulti[0].price, selectedMulti[0].id);
+    return;
+  }
+  const totalDur = selectedMulti.reduce((a, s) => a + (s.duration_minutes > 0 ? Math.ceil(s.duration_minutes/15)*15 : 15), 0);
+  selService = {
+    name: selectedMulti.map(s => s.name).join(' + '),
+    price: selectedMulti.map(s => s.price).join(' + '),
+    duration_minutes: totalDur,
+    service_ids: selectedMulti.map(s => s.id),
+  };
+  const firstId = String(selectedMulti[0].id);
+  const sectionIdx = parseInt(firstId.split('_')[0]);
+  const filtered = masters.filter(m => {
+    if (m.name === 'АДМИН') return false;
+    if (!m.categories || m.categories.trim() === '') return true;
+    const cats = m.categories.split(',').map(c => parseInt(c.trim())).filter(c => !isNaN(c));
+    return cats.includes(sectionIdx);
+  });
+  let html = '';
+  filtered.forEach(m => {
+    html += `<div class="option" onclick="selectMaster('${m.name.replace(/'/g,"\\'")}')">
+      <div class="title">${m.name}</div>
+      <div class="title sub">${m.specialization || 'Мастер'}</div>
+    </div>`;
+  });
+  document.getElementById('masterList').innerHTML = html;
+  setStep(3);
+}
+
+function toggleBlock(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function fmtDur(d) {
+  const mins = d > 0 ? Math.ceil(d / 15) * 15 : 15;
+  if (mins < 60) return mins + ' мин';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h} ч ${m} мин` : `${h} ч`;
+}
+function add15(t, i) {
+  let [h, m] = t.split(':').map(Number);
+  let total = h * 60 + m + i * 15;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+function endOf(t, dur) {
+  const n = (parseInt(dur, 10) || 0) > 0 ? Math.ceil(dur / 15) : 1;
+  return add15(t, n);
+}
+
+// Шаг 2: Выбор услуги
+function selectService(name, price, serviceId) {
+  const svc = services.find(s => String(s.id) === String(serviceId) || s.name === name);
+  selService = { name, price, duration_minutes: svc ? (svc.duration_minutes || 0) : 0, service_ids: null };
+  if (typeof selectedMulti !== 'undefined' && selectedMulti.length > 1) {
+    selService.service_ids = selectedMulti.map(s => s.id);
+    selService.duration_minutes = selectedMulti.reduce((a, s) => a + (s.duration_minutes > 0 ? Math.ceil(s.duration_minutes/15)*15 : 15), 0);
+    selService.name = selectedMulti.map(s => s.name).join(' + ');
+    selService.price = selectedMulti.map(s => s.price).join(' + ');
+  }
+
+  const sectionIdx = parseInt(serviceId.split('_')[0]);
+
+  const filtered = masters.filter(m => {
+    if (m.name === 'АДМИН') return false;
+    if (!m.categories || m.categories.trim() === '') return true;
+    const cats = m.categories.split(',').map(c => parseInt(c.trim())).filter(c => !isNaN(c));
+    return cats.includes(sectionIdx);
+  });
+
+  let html = '';
+  filtered.forEach(m => {
+    html += `<div class="option" onclick="selectMaster('${m.name.replace(/'/g,"\\'")}')">
+      <div class="title">${m.name}</div>
+      <div class="sub">${m.specialization || 'Мастер'}</div>
+    </div>`;
+  });
+  document.getElementById('masterList').innerHTML = html;
+  setStep(3);
+}
+
+// Шаг 3: Выбор мастера
+function selectMaster(name) {
+  selMaster = name;
+  setStep(4);
+  loadSlots();
+}
+
+// Шаг 4: Выбор времени
+async function loadSlots() {
+  selDate = document.getElementById('bookDate').value;
+  if (!selDate || !selMaster) return;
+  const dur = selService && selService.duration_minutes ? selService.duration_minutes : 0;
+  const slots = await fetch(`/api/slots?master_name=${encodeURIComponent(selMaster)}&date=${selDate}&duration_minutes=${dur}`).then(r => r.json());
+  const grid = document.getElementById('timeGrid');
+  if (!slots.length) { grid.innerHTML = '<p style="color:var(--text-light);grid-column:1/-1;text-align:center">Нет свободных слотов</p>'; return; }
+  grid.innerHTML = slots.map(s =>
+    s.available
+      ? `<div class="time-slot" onclick="selectTime('${s.time}')">${s.time}</div>`
+      : `<div class="time-slot unavailable">${s.time}</div>`
+  ).join('');
+  selTime = null;
+  document.getElementById('selectedTime').style.display = 'none';
+}
+
+function selectTime(time) {
+  selTime = time;
+  document.querySelectorAll('.time-slot').forEach(el => {
+    el.classList.toggle('selected', el.textContent === time && !el.classList.contains('unavailable'));
+  });
+  document.getElementById('selectedTime').style.display = '';
+  document.getElementById('selectedTimeText').textContent = `${selDate} в ${time}`;
+  const dur = selService && selService.duration_minutes ? selService.duration_minutes : 0;
+  const timeLabel = dur > 15 ? `${time} – ${endOf(time, dur)} (${fmtDur(dur)})` : time;
+  document.getElementById('cService').textContent = `${selService.name} (${selService.price} BYN)`;
+  document.getElementById('cMaster').textContent = selMaster;
+  document.getElementById('cDate').textContent = selDate;
+  document.getElementById('cTime').textContent = timeLabel;
+  setStep(5);
+}
+
+// Шаг 5: Отправка
+async function submit() {
+  const name = document.getElementById('bookName').value.trim();
+  const phone = document.getElementById('bookPhone').value.trim();
+  if (!name) { alert('Введите имя'); return; }
+  const res = await fetch('/api/bookings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      master_name: selMaster, date: selDate, time: selTime,
+      client_name: name, phone: phone, service_name: selService.name,
+      duration_minutes: selService && selService.duration_minutes ? selService.duration_minutes : 0,
+      service_ids: selService && selService.service_ids && selService.service_ids.length > 1
+        ? selService.service_ids.map(x => parseInt(x, 10) || x)
+        : undefined,
+      promo_code: (document.getElementById('bookPromo')?.value || '').trim() || undefined,
+    }),
+  });
+  if (res.ok) {
+    document.getElementById('doneText').textContent = `${selDate} в ${selTime} к мастеру ${selMaster}`;
+    setStep(6);
+  } else {
+    const err = await res.json();
+    alert(err.detail || 'Ошибка записи');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

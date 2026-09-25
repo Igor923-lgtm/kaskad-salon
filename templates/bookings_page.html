@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>{{ "Аренды" if org_type == "coworking" else "Все записи" }} — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+  <style>
+    .client-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .client-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .client-header:hover { background: #f8f9fa; }
+    .client-info { display: flex; align-items: center; gap: 12px; flex: 1; }
+    .client-name { font-weight: 600; font-size: 15px; }
+    .client-phone { color: var(--text-light); font-size: 13px; }
+    .client-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-light); }
+    .client-stats span { white-space: nowrap; }
+    .client-bookings { display: none; border-top: 1px solid var(--border); }
+    .client-bookings.open { display: block; }
+    .client-bookings table { margin: 0; }
+    .client-bookings .crm-table td { padding: 8px 16px; font-size: 13px; }
+    .toggle-icon { font-size: 18px; color: var(--text-light); transition: transform 0.2s; }
+    .toggle-icon.open { transform: rotate(180deg); }
+    .stats-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .stat-mini { background: var(--card); border-radius: var(--radius); padding: 12px 16px; box-shadow: var(--shadow); text-align: center; min-width: 80px; }
+    .stat-mini .value { font-size: 22px; font-weight: 700; }
+    .stat-mini .label { font-size: 11px; color: var(--text-light); }
+  </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+<div class="header">
+  <h1>{{ "Аренды" if org_type == "coworking" else "Все записи" }}</h1>
+</div>
+
+<div style="padding:16px">
+  <div class="page-header">
+    <h2>📋 Записи по клиентам</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="text" id="searchInput" placeholder="Поиск по имени или телефону..." style="min-width:220px" oninput="searchClients()">
+    </div>
+  </div>
+
+  <div class="stats-row" id="statsRow"></div>
+
+  <div id="clientsList"></div>
+</div>
+
+</div>
+
+<!-- Модалка: цена визита -->
+<div class="modal-overlay" id="priceModal" style="display:none" onclick="if(event.target===this)closePriceModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Цена визита</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closePriceModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="priceEditId">
+      <div class="form-group">
+        <label>Цена</label>
+        <input type="text" id="priceEditValue" placeholder="150">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePriceModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="savePrice()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allGroups = [];
+
+async function loadGroups(search = '') {
+  const url = search ? `/api/bookings/grouped?search=${encodeURIComponent(search)}` : '/api/bookings/grouped';
+  const r = await fetch(url);
+  allGroups = await r.json();
+  renderStats();
+  renderGroups(allGroups);
+}
+
+function renderStats() {
+  const total = allGroups.reduce((s, g) => s + g.total_bookings, 0);
+  const clients = allGroups.length;
+  const active = allGroups.reduce((s, g) => s + g.active_count, 0);
+  const completed = allGroups.reduce((s, g) => s + g.completed_count, 0);
+  const cancelled = allGroups.reduce((s, g) => s + g.cancelled_count, 0);
+  
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-mini" onclick="filterByStatus('all')" style="cursor:pointer;border:${activeFilter==='all'?'2px solid var(--primary)':'none'}"><div class="value">${clients}</div><div class="label">Клиентов</div></div>
+    <div class="stat-mini" onclick="filterByStatus('total')" style="cursor:pointer;border:${activeFilter==='total'?'2px solid var(--primary)':'none'}"><div class="value">${total}</div><div class="label">Всего записей</div></div>
+    <div class="stat-mini" onclick="filterByStatus('active')" style="cursor:pointer;border:${activeFilter==='active'?'2px solid var(--primary)':'none'}"><div class="value" style="color:var(--primary)">${active}</div><div class="label">Активных</div></div>
+    <div class="stat-mini" onclick="filterByStatus('completed')" style="cursor:pointer;border:${activeFilter==='completed'?'2px solid var(--primary)':'none'}"><div class="value" style="color:var(--info)">${completed}</div><div class="label">Завершённых</div></div>
+    <div class="stat-mini" onclick="filterByStatus('cancelled')" style="cursor:pointer;border:${activeFilter==='cancelled'?'2px solid var(--primary)':'none'}"><div class="value" style="color:var(--danger)">${cancelled}</div><div class="label">Отменённых</div></div>
+  `;
+}
+
+let activeFilter = 'all';
+
+function filterByStatus(status) {
+  activeFilter = status;
+  renderStats();
+  renderGroups(allGroups);
+}
+
+function getStatus(b) {
+  if (b.cancelled) return '<span class="badge badge-cancelled">Отменена</span>';
+  if (b.completed) return '<span class="badge badge-completed">Завершена</span>';
+  if (b.confirmed) return '<span class="badge badge-active">Подтверждена</span>';
+  return '<span class="badge badge-lead">Новая</span>';
+}
+
+function renderGroups(groups) {
+  const el = document.getElementById('clientsList');
+  
+  // Filter bookings by status
+  const filtered = groups.map(g => {
+    const filteredBookings = g.bookings.filter(b => {
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'total') return true;
+      if (activeFilter === 'active') return !b.cancelled && !b.completed;
+      if (activeFilter === 'completed') return b.completed;
+      if (activeFilter === 'cancelled') return b.cancelled;
+      return true;
+    });
+    return {...g, bookings: filteredBookings};
+  }).filter(g => g.bookings.length > 0);
+  
+  if (!filtered.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">Нет записей</div>';
+    return;
+  }
+  
+  el.innerHTML = filtered.map((g, i) => `
+    <div class="client-card">
+      <div class="client-header" onclick="toggleGroup(${i})">
+        <div class="client-info">
+          <div>
+            <div class="client-name">${g.client_name || 'Неизвестный'}</div>
+            <div class="client-phone">${g.phone || 'Нет телефона'}</div>
+          </div>
+        </div>
+        <div class="client-stats">
+          <span>📅 ${g.bookings.length} записей</span>
+          <span>📅 Последний: ${g.last_visit || '—'}</span>
+        </div>
+        <span class="toggle-icon" id="icon${i}">▼</span>
+      </div>
+      <div class="client-bookings" id="group${i}">
+        <table class="crm-table">
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Время</th>
+              <th>Мастер</th>
+              <th>Услуга</th>
+              <th>Цена</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${g.bookings.map(b => `
+              <tr>
+                <td>${b.date || '—'}</td>
+                <td>${b.time || '—'}</td>
+                <td>${b.master_name || '—'}</td>
+                <td>${b.service_name || '—'}</td>
+                <td><span style="cursor:pointer;color:var(--primary)" onclick="editPrice(${b.id}, '${b.price || ''}')">${b.price || '—'}</span></td>
+                <td>${getStatus(b)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleGroup(i) {
+  const el = document.getElementById('group' + i);
+  const icon = document.getElementById('icon' + i);
+  el.classList.toggle('open');
+  icon.classList.toggle('open');
+}
+
+function searchClients() {
+  const q = document.getElementById('searchInput').value;
+  if (q.length > 0) {
+    loadGroups(q);
+  } else {
+    loadGroups();
+  }
+}
+
+loadGroups();
+
+function showSavedToast() {
+  let el = document.getElementById('pageSaved');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pageSaved';
+    el.className = 'saved';
+    el.textContent = '✓ Сохранено';
+    document.body.appendChild(el);
+  }
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2000);
+}
+
+async function editPrice(id, currentPrice) {
+  document.getElementById('priceEditId').value = id;
+  document.getElementById('priceEditValue').value = currentPrice || '';
+  document.getElementById('priceModal').style.display = 'flex';
+}
+
+function closePriceModal() {
+  document.getElementById('priceModal').style.display = 'none';
+}
+
+async function savePrice() {
+  const id = document.getElementById('priceEditId').value;
+  const price = document.getElementById('priceEditValue').value.trim();
+  await fetch(`/api/bookings/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    credentials: 'same-origin',
+    body: JSON.stringify({ price })
+  });
+  closePriceModal();
+  loadGroups();
+  showSavedToast();
+}
+</script>
+
+</body>
+</html>

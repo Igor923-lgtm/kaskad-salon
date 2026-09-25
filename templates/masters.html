@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мастера — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+<div class="header">
+  <h1>Мастера</h1>
+</div>
+
+<div style="padding:16px">
+  <div class="page-header">
+    <h2>👩‍🎨 Управление мастерами</h2>
+    <button class="btn btn-primary" onclick="openAddModal()">+ Добавить мастера</button>
+  </div>
+
+  <table class="crm-table" id="mastersTable">
+    <thead>
+      <tr>
+        <th>Имя</th>
+        <th>Специализация</th>
+        <th>Тип</th>
+        <th>Телефон</th>
+        <th>Telegram</th>
+        <th>Статус</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody id="mastersBody"></tbody>
+  </table>
+</div>
+
+<!-- Модалка добавления/редактирования -->
+<div class="modal-overlay" id="editModal" style="display:none" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Добавить мастера</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-x:hidden">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label>Имя</label>
+        <input id="editName" placeholder="Имя мастера">
+      </div>
+      <div class="form-group">
+        <label>Специализация</label>
+        <input id="editSpec" placeholder="Специализация">
+      </div>
+      <div class="form-group">
+        <label>Категории (ID через запятую)</label>
+        <input type="text" id="editCats" placeholder="Например: 0,2 — разделы из «Услуги»">
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px">ID смотрите в порядке категорий на странице «Услуги»</div>
+      </div>
+      <div class="form-group">
+        <label>Телефон</label>
+        <input id="editPhone" placeholder="+375...">
+      </div>
+      <div class="form-group">
+        <label>Тип организации</label>
+        <select id="editOrgType">
+          <option value="">Показывать всегда</option>
+          <option value="beauty">💄 Салон красоты</option>
+          <option value="coworking">🏢 Коворкинг</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>ID в Telegram</label>
+        <input id="editTgId" placeholder="0">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeEditModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveMaster()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main-content -->
+
+<script>
+async function loadMasters() {
+  const r = await fetch('/api/masters');
+  const masters = await r.json();
+  const tbody = document.getElementById('mastersBody');
+  tbody.innerHTML = masters.map(m => `
+    <tr>
+      <td><strong>${m.name}</strong></td>
+      <td>${m.specialization || '—'}</td>
+      <td><span class="badge">${m.org_type === 'coworking' ? '🏢' : m.org_type === 'beauty' ? '💄' : '—'} ${m.org_type || 'все'}</span></td>
+      <td>${m.phone || '—'}</td>
+      <td>${m.telegram_id || '—'}</td>
+      <td><span class="badge ${m.is_active ? 'badge-active' : 'badge-inactive'}">${m.is_active ? 'Активен' : 'Неактивен'}</span></td>
+      <td class="actions">
+        <button class="btn btn-outline btn-sm" onclick='editMaster(${JSON.stringify(m)})'>✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMaster(${m.id}, '${m.name}')">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = 'Добавить мастера';
+  document.getElementById('editId').value = '';
+  document.getElementById('editName').value = '';
+  document.getElementById('editSpec').value = '';
+  document.getElementById('editCats').value = '';
+  document.getElementById('editPhone').value = '';
+  document.getElementById('editTgId').value = '';
+  document.getElementById('editOrgType').value = '{{ org_type }}';
+  document.getElementById('editModal').style.display = '';
+}
+
+function editMaster(m) {
+  document.getElementById('modalTitle').textContent = 'Редактировать мастера';
+  document.getElementById('editId').value = m.id;
+  document.getElementById('editName').value = m.name;
+  document.getElementById('editSpec').value = m.specialization || '';
+  document.getElementById('editCats').value = m.categories || '';
+  document.getElementById('editPhone').value = m.phone || '';
+  document.getElementById('editTgId').value = m.telegram_id || 0;
+  document.getElementById('editOrgType').value = m.org_type || '';
+  document.getElementById('editModal').style.display = '';
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').style.display = 'none';
+}
+
+function showSavedToast(msg) {
+  let el = document.getElementById('pageSaved');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pageSaved';
+    el.className = 'saved';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg || '✓ Сохранено';
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2000);
+}
+
+async function saveMaster() {
+  const id = document.getElementById('editId').value;
+  const data = {
+    name: document.getElementById('editName').value,
+    specialization: document.getElementById('editSpec').value,
+    categories: document.getElementById('editCats').value,
+    phone: document.getElementById('editPhone').value,
+    telegram_id: parseInt(document.getElementById('editTgId').value) || 0,
+    org_type: document.getElementById('editOrgType').value,
+  };
+
+  if (!data.name) { alert('Введите имя'); return; }
+
+  if (id) {
+    await fetch(`/api/masters/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  } else {
+    await fetch('/api/masters', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  }
+  closeEditModal();
+  await loadMasters();
+  showSavedToast('✓ Мастер сохранён');
+}
+
+async function deleteMaster(id, name) {
+  if (!confirm(`Удалить мастера "${name}"?`)) return;
+  await fetch(`/api/masters/${id}`, { method: 'DELETE' });
+  loadMasters();
+}
+
+loadMasters();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>{{ "Арендаторы" if org_type == "coworking" else "Клиенты" }} — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+<div class="header">
+  <h1>{{ "👥 Арендаторы" if org_type == "coworking" else "👥 Клиенты" }}</h1>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <input type="text" id="search" placeholder="Поиск..." style="min-height:36px;padding:0 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;width:200px">
+  </div>
+</div>
+
+<div style="padding:20px">
+
+  <!-- Статистика -->
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- Фильтры -->
+  <div style="display:flex;gap:6px;margin:16px 0;flex-wrap:wrap;align-items:center">
+    <button class="btn btn-primary btn-sm filter-btn" data-filter="all" onclick="setFilter('all')">Все</button>
+    <button class="btn btn-outline btn-sm filter-btn" data-filter="lead" onclick="setFilter('lead')">Лиды</button>
+    <button class="btn btn-outline btn-sm filter-btn" data-filter="client" onclick="setFilter('client')">Клиенты</button>
+    <span id="selectedCount" style="margin-left:8px;font-size:13px;color:var(--primary);display:none">Выбрано: 0</span>
+    <button class="btn btn-outline btn-sm" onclick="importClientsCsv()">📥 CSV</button>
+    <button class="btn btn-outline btn-sm" onclick="openBroadcast()" style="margin-left:auto">📨 Рассылка</button>
+  </div>
+
+  <!-- Модалка CSV import -->
+  <div class="modal-overlay" id="csvModal" style="display:none" onclick="if(event.target===this)closeCsvModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Импорт клиентов (CSV)</h2>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="closeCsvModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin:0 0 8px;font-size:13px;color:var(--text-light)">Формат: <code>имя,телефон[,метка]</code> — по строке. Заголовок опционален.</p>
+        <textarea id="csvText" rows="8" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;font-family:monospace;font-size:13px;box-sizing:border-box" placeholder="Иван, +375291112233, VIP"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeCsvModal()">Отмена</button>
+        <button class="btn btn-primary" onclick="submitCsvImport()">Импортировать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Таблица -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="crm-table">
+      <thead>
+        <tr>
+          <th style="width:36px"><input type="checkbox" id="selectAllCb" onchange="toggleSelectAll(this)" title="Выбрать все"></th>
+          <th>Имя</th>
+          <th>Телефон</th>
+          <th>Тип</th>
+          <th>Обновлён</th>
+          <th style="width:50px"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
+      </tbody>
+    </table>
+    <div id="clientsPager" style="display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--text-light)"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- Модалка деталей клиента -->
+<div class="modal-overlay" id="detailModal" style="display:none" onclick="if(event.target===this)closeDetail()">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h3 id="d-name">Клиент</h3>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- Модалка рассылки -->
+<div class="modal-overlay" id="broadcastModal" style="display:none" onclick="if(event.target===this)closeBroadcast()">
+  <div class="modal" style="max-width:600px;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <h3>📨 Рассылка клиентам</h3>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeBroadcast()">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <!-- Выбор сегмента -->
+      <div class="form-group">
+        <label>Загрузить клиентов</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="bcSegment" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px">
+            <option value="">-- Выберите сегмент --</option>
+            <option value="all">Все клиенты</option>
+            <option value="active">Активные (были недавно)</option>
+            <option value="lost">Потерянные (60+ дней)</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadBroadcastClients()">Загрузить</button>
+        </div>
+      </div>
+
+      <!-- Список клиентов с чекбоксами -->
+      <div id="bcClientsList" style="margin-top:12px;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600">Выберите получателей:</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" onclick="bcSelectAll()">Все</button>
+            <button class="btn btn-outline btn-sm" onclick="bcDeselectAll()">Нет</button>
+          </div>
+        </div>
+        <div id="bcClientsCheckboxes" style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div>
+        <div style="margin-top:6px;font-size:12px;color:var(--text-light)">Выбрано: <span id="bcSelectedCount">0</span></div>
+      </div>
+
+      <!-- Текст сообщения -->
+      <div class="form-group" style="margin-top:12px">
+        <label>Текст сообщения</label>
+        <textarea id="bcText" rows="4" placeholder="Введите текст рассылки..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;resize:vertical"></textarea>
+      </div>
+      <div id="bcResult" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBroadcast()">Отмена</button>
+      <button class="btn btn-primary" id="bcSendBtn" onclick="sendBroadcast()">📨 Отправить выбранным</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentFilter = 'all';
+let searchTimeout = null;
+
+async function loadStats() {
+  try {
+    const [statsResp, leadsResp] = await Promise.all([
+      fetch('/api/clients/stats'),
+      fetch('/api/clients?type=lead')
+    ]);
+    const stats = await statsResp.json();
+    const leads = await leadsResp.json();
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card"><div style="font-size:28px;font-weight:700;color:var(--primary)">${stats.total || 0}</div><div style="font-size:12px;color:var(--text-light)">Клиентов</div></div>
+      <div class="stat-card"><div style="font-size:28px;font-weight:700">${leads.length || 0}</div><div style="font-size:12px;color:var(--text-light)">Лидов</div></div>
+      <div class="stat-card"><div style="font-size:28px;font-weight:700">${stats.new_this_month || 0}</div><div style="font-size:12px;color:var(--text-light)">Новых за месяц</div></div>
+      <div class="stat-card"><div style="font-size:28px;font-weight:700">${stats.regular_3plus || 0}</div><div style="font-size:12px;color:var(--text-light)">Постоянных</div></div>
+      <div class="stat-card"><div style="font-size:28px;font-weight:700;color:${(stats.lost_60_days||0) > 0 ? 'var(--danger)' : 'var(--text-light)'}">${stats.lost_60_days || 0}</div><div style="font-size:12px;color:var(--text-light)">Потерянных</div></div>
+    `;
+  } catch(e) { console.error('Stats error:', e); }
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.className = 'btn btn-sm filter-btn ' + (b.dataset.filter === f ? 'btn-primary' : 'btn-outline');
+  });
+  document.getElementById('search').value = '';
+  loadClients(f);
+}
+
+let selectedClients = new Set();
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.client-cb').forEach(c => { c.checked = cb.checked; });
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  selectedClients.clear();
+  document.querySelectorAll('.client-cb:checked').forEach(c => selectedClients.add(parseInt(c.value)));
+  const cnt = selectedClients.size;
+  const el = document.getElementById('selectedCount');
+  if (cnt > 0) {
+    el.style.display = '';
+    el.textContent = `Выбрано: ${cnt}`;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+async function deleteClient(tgId, name, phone) {
+  if (!confirm('Удалить клиента "' + name + '"?')) return;
+  try {
+    if (tgId === 0) {
+      await fetch('/api/clients/delete-manual', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: name, phone: phone || ''})
+      });
+    } else {
+      await fetch('/api/clients/' + tgId, { method: 'DELETE' });
+    }
+    loadClients(currentFilter);
+  } catch(e) {
+    alert('Ошибка удаления');
+  }
+}
+
+async function importClientsCsv() {
+  document.getElementById('csvText').value = '';
+  document.getElementById('csvModal').style.display = 'flex';
+}
+
+function closeCsvModal() {
+  document.getElementById('csvModal').style.display = 'none';
+}
+
+async function submitCsvImport() {
+  const csv = document.getElementById('csvText').value.trim();
+  if (!csv) { alert('Вставьте CSV'); return; }
+  try {
+    const r = await fetch('/api/clients/import', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ csv })
+    });
+    const body = await r.json().catch(() => ({}));
+    if (r.ok) {
+      closeCsvModal();
+      alert('Импортировано: ' + (body.imported || 0));
+      loadClients(currentFilter);
+      loadStats();
+    } else {
+      alert(body.detail || 'Ошибка импорта');
+    }
+  } catch (e) {
+    alert('Ошибка сети');
+  }
+}
+
+async function loadClients(filter, query) {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-light)">Загрузка...</td></tr>';
+  try {
+    let url;
+    if (query && query.length >= 2) {
+      url = '/api/clients/search/' + encodeURIComponent(query);
+    } else if (filter === 'all') {
+      url = '/api/clients';
+    } else {
+      url = '/api/clients?type=' + filter;
+    }
+    const resp = await fetch(url);
+    const clients = await resp.json();
+    window._allClients = clients;
+    if (!clients.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light)">Клиентов пока нет</td></tr>';
+      renderClientsPager();
+      return;
+    }
+    renderClientsPage(0);
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--danger)">Ошибка загрузки</td></tr>';
+  }
+}
+
+const CLIENTS_PAGE_SIZE = 50;
+let clientsPage = 0;
+
+function renderClientsPager() {
+  const all = window._allClients || [];
+  const pages = Math.max(1, Math.ceil(all.length / CLIENTS_PAGE_SIZE));
+  if (clientsPage >= pages) clientsPage = pages - 1;
+  const el = document.getElementById('clientsPager');
+  if (!el) return;
+  if (!all.length) {
+    el.innerHTML = '';
+    return;
+  }
+  const from = clientsPage * CLIENTS_PAGE_SIZE + 1;
+  const to = Math.min(all.length, (clientsPage + 1) * CLIENTS_PAGE_SIZE);
+  el.innerHTML = `
+    <button class="btn btn-outline btn-sm" ${clientsPage === 0 ? 'disabled' : ''} onclick="renderClientsPage(clientsPage-1)">←</button>
+    <span>${from}–${to} из ${all.length}</span>
+    <button class="btn btn-outline btn-sm" ${to >= all.length ? 'disabled' : ''} onclick="renderClientsPage(clientsPage+1)">→</button>
+  `;
+}
+
+function renderClientsPage(page) {
+  clientsPage = Math.max(0, page);
+  const all = window._allClients || [];
+  const slice = all.slice(clientsPage * CLIENTS_PAGE_SIZE, (clientsPage + 1) * CLIENTS_PAGE_SIZE);
+  const tbody = document.getElementById('tbody');
+  if (!slice.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light)">Клиентов пока нет</td></tr>';
+    renderClientsPager();
+    return;
+  }
+  tbody.innerHTML = slice.map(c => {
+    const badge = c.client_type === 'client'
+      ? '<span class="badge badge-confirmed">Клиент</span>'
+      : c.client_type === 'manual'
+      ? '<span class="badge badge-new">Ручной</span>'
+      : '<span class="badge badge-new">Лид</span>';
+    const dt = c.updated_at ? new Date(c.updated_at.replace(' ','T')).toLocaleDateString('ru-RU') : '—';
+    const checked = selectedClients.has(c.telegram_id) ? 'checked' : '';
+    const delBtn = c.telegram_id ? `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();deleteClient(${c.telegram_id},'${esc(c.name || '')}','${esc(c.phone || '')}')" title="Удалить" style="color:var(--danger);padding:2px 6px;font-size:11px">✕</button>` : `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();deleteClient(0,'${esc(c.name || '')}','${esc(c.phone || '')}')" title="Удалить" style="color:var(--danger);padding:2px 6px;font-size:11px">✕</button>`;
+    return `<tr>
+      <td onclick="event.stopPropagation()"><input type="checkbox" class="client-cb" value="${c.telegram_id}" ${checked} onchange="updateSelectedCount()"></td>
+      <td onclick="${c.telegram_id ? 'showDetail('+c.telegram_id+')' : ''}" style="cursor:pointer">${esc(c.name || '—')}</td>
+      <td onclick="${c.telegram_id ? 'showDetail('+c.telegram_id+')' : ''}" style="cursor:pointer">${esc(c.phone || '—')}</td>
+      <td>${badge}</td>
+      <td>${dt}</td>
+      <td>${delBtn}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('selectAllCb').checked = false;
+  renderClientsPager();
+}
+
+async function showDetail(tgId) {
+  document.getElementById('detailModal').style.display = 'flex';
+  const body = document.getElementById('detailBody');
+  body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light)">Загрузка...</div>';
+  try {
+    const resp = await fetch('/api/clients/' + tgId);
+    if (!resp.ok) throw new Error('Not found');
+    const c = await resp.json();
+    document.getElementById('d-name').textContent = c.name || 'Без имени';
+
+    const badge = c.client_type === 'client'
+      ? '<span class="badge badge-confirmed">Клиент</span>'
+      : '<span class="badge badge-new">Лид</span>';
+    const dt = c.updated_at ? new Date(c.updated_at.replace(' ','T')).toLocaleDateString('ru-RU') : '—';
+
+    let html = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;font-size:13px">
+        <div><span style="color:var(--text-light)">Телефон:</span> ${esc(c.phone || '—')}</div>
+        <div><span style="color:var(--text-light)">ID в Telegram:</span> ${c.telegram_id}</div>
+        <div><span style="color:var(--text-light)">Тип:</span> ${badge}</div>
+        <div><span style="color:var(--text-light)">Обновлён:</span> ${dt}</div>
+      </div>
+      <h4 style="margin-bottom:8px;font-size:14px">История визитов</h4>
+    `;
+
+    const histResp = await fetch('/api/clients/' + tgId + '/history');
+    const history = await histResp.json();
+    if (!history.length) {
+      html += '<div style="color:var(--text-light);font-size:13px">Нет визитов</div>';
+    } else {
+      html += `<table class="crm-table" style="font-size:13px"><thead><tr><th>Дата</th><th>Время</th><th>Мастер</th><th>Услуга</th><th>Статус</th></tr></thead><tbody>`;
+      history.forEach(b => {
+        const st = b.confirmed ? '<span class="badge badge-confirmed">✓</span>' : '<span class="badge badge-new">⏳</span>';
+        html += `<tr><td>${b.date||'—'}</td><td>${b.time||'—'}</td><td>${esc(b.master_name||'—')}</td><td>${esc(b.service_name||'—')}</td><td>${st}</td></tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    body.innerHTML = html;
+  } catch(e) {
+    body.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center">Ошибка загрузки</div>';
+  }
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').style.display = 'none';
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+document.getElementById('search').addEventListener('input', (e) => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => { loadClients(currentFilter, e.target.value.trim()); }, 300);
+});
+
+loadStats();
+loadClients('all');
+
+let bcClients = [];
+
+function openBroadcast() {
+  document.getElementById('broadcastModal').style.display = 'flex';
+  document.getElementById('bcText').value = '';
+  document.getElementById('bcResult').innerHTML = '';
+  document.getElementById('bcClientsList').style.display = 'none';
+  document.getElementById('bcSegment').value = '';
+  bcClients = [];
+  // Если есть выбранные в таблице — сразу загружаем их
+  if (selectedClients.size > 0) {
+    loadSelectedIntoBroadcast();
+  }
+}
+
+function closeBroadcast() {
+  document.getElementById('broadcastModal').style.display = 'none';
+}
+
+function loadSelectedIntoBroadcast() {
+  // Загружаем выбранных из таблицы в модалку
+  const list = document.getElementById('bcClientsCheckboxes');
+  const rows = document.querySelectorAll('#tbody tr');
+  bcClients = [];
+  rows.forEach(row => {
+    const cb = row.querySelector('.client-cb');
+    if (cb && cb.checked) {
+      const tds = row.querySelectorAll('td');
+      bcClients.push({
+        telegram_id: parseInt(cb.value),
+        name: tds[1] ? tds[1].textContent.trim() : '—',
+        phone: tds[2] ? tds[2].textContent.trim() : '—',
+      });
+    }
+  });
+  renderBcClients();
+}
+
+async function loadBroadcastClients() {
+  const segment = document.getElementById('bcSegment').value;
+  if (!segment) { alert('Выберите сегмент'); return; }
+
+  let url;
+  if (segment === 'lost') url = '/api/clients/lost?days=60';
+  else if (segment === 'active') url = '/api/clients?type=client';
+  else url = '/api/clients';
+
+  try {
+    const resp = await fetch(url);
+    bcClients = await resp.json();
+    renderBcClients();
+  } catch(e) {
+    alert('Ошибка загрузки клиентов');
+  }
+}
+
+function renderBcClients() {
+  const list = document.getElementById('bcClientsCheckboxes');
+  const container = document.getElementById('bcClientsList');
+  if (!bcClients.length) {
+    list.innerHTML = '<div style="color:var(--text-light);padding:12px;text-align:center">Нет клиентов</div>';
+    container.style.display = '';
+    return;
+  }
+  list.innerHTML = bcClients.map(c => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px">
+      <input type="checkbox" class="bc-cb" value="${c.telegram_id}" checked onchange="updateBcCount()">
+      <span style="flex:1">${esc(c.name || '—')}</span>
+      <span style="color:var(--text-light)">${esc(c.phone || '—')}</span>
+    </label>
+  `).join('');
+  container.style.display = '';
+  updateBcCount();
+}
+
+function bcSelectAll() {
+  document.querySelectorAll('.bc-cb').forEach(c => c.checked = true);
+  updateBcCount();
+}
+
+function bcDeselectAll() {
+  document.querySelectorAll('.bc-cb').forEach(c => c.checked = false);
+  updateBcCount();
+}
+
+function updateBcCount() {
+  const cnt = document.querySelectorAll('.bc-cb:checked').length;
+  document.getElementById('bcSelectedCount').textContent = cnt;
+}
+
+async function sendBroadcast() {
+  const text = document.getElementById('bcText').value.trim();
+  if (!text) { alert('Введите текст сообщения'); return; }
+
+  const ids = Array.from(document.querySelectorAll('.bc-cb:checked')).map(c => parseInt(c.value));
+  if (!ids.length) { alert('Выберите хотя бы одного получателя'); return; }
+
+  if (!confirm(`Отправить сообщение ${ids.length} клиентам?`)) return;
+
+  const btn = document.getElementById('bcSendBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Отправляю...';
+  document.getElementById('bcResult').innerHTML = '<div style="color:var(--text-light)">Отправка...</div>';
+
+  try {
+    const resp = await fetch('/api/broadcast', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ client_ids: ids, text }),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      document.getElementById('bcResult').innerHTML = `<div style="color:var(--primary)">✅ Отправлено: ${data.sent}, ошибок: ${data.failed}</div>`;
+    } else {
+      document.getElementById('bcResult').innerHTML = `<div style="color:var(--danger)">❌ ${data.detail || 'Ошибка'}</div>`;
+    }
+  } catch(e) {
+    document.getElementById('bcResult').innerHTML = `<div style="color:var(--danger)">❌ Ошибка сети</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '📨 Отправить выбранным';
+}
+</script>
+
+</body>
+</html>

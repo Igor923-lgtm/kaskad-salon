@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Дашборд — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  @media (max-width: 768px) {
+    .charts-grid { grid-template-columns: 1fr !important; }
+    .main-content { overflow-x: hidden; }
+    .crm-table { display: block; overflow-x: auto; max-width: 100%; }
+    .card { overflow-x: hidden; }
+    .stats-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important; padding: 12px !important; }
+  }
+</style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+<div class="header">
+  <h1>Дашборд</h1>
+  <span id="todayDate" style="color:var(--text-light);font-size:14px"></span>
+</div>
+
+<div style="padding:20px">
+  <!-- Карточки статистики -->
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- Быстрые действия -->
+  <div class="card" style="margin-top:20px;padding:16px">
+    <h3 style="margin:0 0 12px">⚡ Быстрые действия</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      {% if org_type == "coworking" %}
+      <a href="/schedule" class="btn btn-primary">📅 Занятость</a>
+      <a href="/masters" class="btn btn-outline">🪑 Пространства</a>
+      <a href="/clients" class="btn btn-outline">👥 Арендаторы</a>
+      {% else %}
+      <a href="/schedule" class="btn btn-primary">📅 Шахматка</a>
+      <a href="/masters" class="btn btn-outline">👩‍🎨 Мастера</a>
+      <a href="/clients" class="btn btn-outline">👥 Клиенты</a>
+      {% endif %}
+      <a href="/finance" class="btn btn-outline">💰 Финансы</a>
+      <a href="/analytics" class="btn btn-outline">📈 Аналитика</a>
+    </div>
+  </div>
+
+  <!-- Графики -->
+  <div class="charts-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+    <div class="card" style="padding:10px;min-width:0;overflow:hidden">
+      <h3 style="margin:0 0 8px;font-size:13px">📊 Записи за неделю</h3>
+      <div style="height:120px;min-width:0"><canvas id="weekChart"></canvas></div>
+    </div>
+    <div class="card" style="padding:10px;min-width:0;overflow:hidden">
+      <h3 style="margin:0 0 8px;font-size:13px">🏆 Топ услуги</h3>
+      <div style="height:120px;min-width:0"><canvas id="servicesChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Последние записи -->
+  <div class="card" style="margin-top:20px;padding:16px;overflow-x:auto">
+    <h3 style="margin:0 0 12px">📋 Последние записи</h3>
+    <table class="crm-table" id="recentBookings">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Время</th>
+          <th>Клиент</th>
+          <th>Мастер</th>
+          <th>Услуга</th>
+          <th>Статус</th>
+        </tr>
+      </thead>
+      <tbody id="bookingsBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Потерянные клиенты -->
+  <div class="card" style="margin-top:20px;padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0">🔍 Потерянные клиенты (60+ дней)</h3>
+      <button class="btn btn-outline btn-sm" onclick="openBroadcastLost()">📨 Напомнить</button>
+    </div>
+    <div id="lostClients"></div>
+  </div>
+</div>
+
+</div><!-- /main-content -->
+
+<script>
+// Устанавливаем дату
+const today = new Date();
+document.getElementById('todayDate').textContent = today.toLocaleDateString('ru-RU', {
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+});
+
+async function loadDashboard() {
+  try {
+    // Загружаем статистику
+    const statsR = await fetch('/api/stats');
+    const stats = await statsR.json();
+    const isCoworking = '{{ org_type }}' === 'coworking';
+
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card">
+        <div style="font-size:28px;font-weight:700;color:var(--primary)">${stats.today_bookings}</div>
+        <div style="font-size:12px;color:var(--text-light)">${isCoworking ? 'Аренд сегодня' : 'Записей сегодня'}</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:28px;font-weight:700">${stats.total_bookings}</div>
+        <div style="font-size:12px;color:var(--text-light)">${isCoworking ? 'Всего аренд' : 'Всего записей'}</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:28px;font-weight:700">${stats.total_clients}</div>
+        <div style="font-size:12px;color:var(--text-light)">${isCoworking ? 'Арендаторов' : 'Клиентов'}</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:28px;font-weight:700">${stats.total_masters}</div>
+        <div style="font-size:12px;color:var(--text-light)">${isCoworking ? 'Пространств' : 'Мастеров'}</div>
+      </div>
+      <div class="stat-card">
+        <div style="font-size:28px;font-weight:700;color:${stats.pending_bookings > 0 ? 'var(--accent)' : 'var(--text-light)'}">${stats.pending_bookings}</div>
+        <div style="font-size:12px;color:var(--text-light)">${isCoworking ? 'Не оплачено' : 'Ожидают'}</div>
+      </div>
+    `;
+
+    // Загружаем записи за неделю для графика
+    const weekData = [];
+    const weekLabels = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayName = d.toLocaleDateString('ru-RU', { weekday: 'short' });
+      weekLabels.push(dayName);
+      try {
+        const r = await fetch(`/api/bookings?date=${dateStr}`);
+        const bookings = await r.json();
+        weekData.push(bookings.length);
+      } catch(e) {
+        weekData.push(0);
+      }
+    }
+
+    // График записей за неделю
+    new Chart(document.getElementById('weekChart'), {
+      type: 'bar',
+      data: {
+        labels: weekLabels,
+        datasets: [{
+          label: 'Записи',
+          data: weekData,
+          backgroundColor: '#6C63FF',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+      }
+    });
+
+    // Топ услуги
+    const clientsR = await fetch('/api/clients/stats');
+    const clientsStats = await clientsR.json();
+    if (clientsStats.top_services && clientsStats.top_services.length > 0) {
+      const labels = clientsStats.top_services.map(s => s.name.substring(0, 20));
+      const data = clientsStats.top_services.map(s => s.count);
+      const colors = ['#6C63FF', '#4ECDC4', '#FFD700', '#FF6B6B', '#a855f7'];
+      new Chart(document.getElementById('servicesChart'), {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{ data: data, backgroundColor: colors }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 9 } } } }
+        }
+      });
+    }
+
+    // Последние записи
+    const bookingsR = await fetch('/api/bookings');
+    const bookings = await bookingsR.json();
+    const tbody = document.getElementById('bookingsBody');
+    function bookingStatus(b) {
+      if (b.cancelled) return '<span class="badge badge-cancelled">Отменена</span>';
+      if (b.completed) return '<span class="badge badge-completed">Завершена</span>';
+      if (b.confirmed) return '<span class="badge badge-active">Подтверждена</span>';
+      return '<span class="badge badge-lead">Новая</span>';
+    }
+    tbody.innerHTML = bookings.slice(0, 20).map(b => `
+      <tr>
+        <td>${b.date || '—'}</td>
+        <td>${b.time || '—'}</td>
+        <td>${b.client_name || '—'}</td>
+        <td>${b.master_name || '—'}</td>
+        <td>${b.service_name || '—'}</td>
+        <td>${bookingStatus(b)}</td>
+      </tr>
+    `).join('');
+
+    // Потерянные клиенты
+    const lostR = await fetch('/api/clients/lost?days=60');
+    const lost = await lostR.json();
+    const lostDiv = document.getElementById('lostClients');
+    if (lost.length === 0) {
+      lostDiv.innerHTML = '<div style="color:var(--text-light);font-size:13px">Потерянных клиентов нет!</div>';
+    } else {
+      lostDiv.innerHTML = `
+        <div style="font-size:13px;margin-bottom:8px">Клиенты, которые не были 60+ дней: <strong>${lost.length}</strong></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${lost.slice(0, 5).map(c => `
+            <div style="background:var(--bg);padding:8px 12px;border-radius:8px;font-size:12px">
+              ${c.name || '—'} | ${c.phone || '—'}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+  } catch(e) {
+    console.error('Dashboard error:', e);
+  }
+}
+
+loadDashboard();
+
+function openBroadcastLost() {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'bcModal';
+  modal.style.display = 'flex';
+  modal.onclick = function(e) { if (e.target === this) this.remove(); };
+  modal.innerHTML = `
+    <div class="modal" style="max-width:500px">
+      <div class="modal-header">
+        <h3>📨 Рассылка потерянным клиентам</h3>
+        <button class="btn btn-outline btn-icon btn-sm" onclick="this.closest('.modal-overlay').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Текст сообщения</label>
+          <textarea id="bcTextLost" rows="5" placeholder="Введите текст..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;resize:vertical"></textarea>
+        </div>
+        <div id="bcResultLost" style="margin-top:12px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
+        <button class="btn btn-primary" onclick="sendBroadcastLost()">📨 Отправить</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function sendBroadcastLost() {
+  const text = document.getElementById('bcTextLost').value.trim();
+  if (!text) { alert('Введите текст'); return; }
+  if (!confirm('Отправить сообщение потерянным клиентам?')) return;
+
+  document.getElementById('bcResultLost').innerHTML = '<div style="color:var(--text-light)">⏳ Отправляю...</div>';
+  try {
+    const resp = await fetch('/api/broadcast', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ segment: 'lost', text }),
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      document.getElementById('bcResultLost').innerHTML = `<div style="color:var(--primary)">✅ Отправлено: ${data.sent}, ошибок: ${data.failed}</div>`;
+    } else {
+      document.getElementById('bcResultLost').innerHTML = `<div style="color:var(--danger)">❌ ${data.detail || 'Ошибка'}</div>`;
+    }
+  } catch(e) {
+    document.getElementById('bcResultLost').innerHTML = `<div style="color:var(--danger)">❌ Ошибка сети</div>`;
+  }
+}
+</script>
+
+</body>
+</html>

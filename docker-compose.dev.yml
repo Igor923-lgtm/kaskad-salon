@@ -1,0 +1,124 @@
+version: "3.8"
+
+services:
+  kaskad:
+    build: .
+    container_name: kaskad-bot
+    restart: always
+    environment:
+      - SALON_ID=kaskad
+      - TZ=Europe/Moscow
+      - DB_PATH=/app/data/bot_cache.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./salons/kaskad/data:/app/data
+      - ./salons/kaskad/.env:/app/.env:ro
+      - ./salons/kaskad/static:/app/static
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  salon-1:
+    build: .
+    container_name: salon-1-bot
+    restart: always
+    environment:
+      - SALON_ID=salon_1
+      - TZ=Europe/Moscow
+      - DB_PATH=/app/data/bot_cache.db
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./salons/salon_1/data:/app/data
+      - ./salons/salon_1/.env:/app/.env:ro
+      - ./salons/salon_1/static:/app/static
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  salon-2:
+    build: .
+    container_name: salon-2-bot
+    restart: always
+    environment:
+      - SALON_ID=salon_2
+      - TZ=Europe/Moscow
+      - DB_PATH=/app/data/bot_cache.db
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./salons/salon_2/data:/app/data
+      - ./salons/salon_2/.env:/app/.env:ro
+      - ./salons/salon_2/static:/app/static
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  salon-3:
+    build: .
+    container_name: salon-3-bot
+    restart: always
+    environment:
+      - SALON_ID=salon_3
+      - TZ=Europe/Moscow
+      - DB_PATH=/app/data/bot_cache.db
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./salons/salon_3/data:/app/data
+      - ./salons/salon_3/.env:/app/.env:ro
+      - ./salons/salon_3/static:/app/static
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  salon-4:
+    build: .
+    container_name: salon-4-bot
+    restart: always
+    environment:
+      - SALON_ID=salon_4
+      - TZ=Europe/Moscow
+      - DB_PATH=/app/data/bot_cache.db
+    ports:
+      - "8004:8000"
+    volumes:
+      - ./salons/salon_4/data:/app/data
+      - ./salons/salon_4/.env:/app/.env:ro
+      - ./salons/salon_4/static:/app/static
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  hairos:
+    build: .
+    container_name: hairos-bot
+    restart: always
+    environment:
+      - SALON_ID=hairos
+      - TZ=Europe/Minsk
+      - DB_PATH=/app/data/bot_cache.db
+    ports:
+      - "8005:8000"
+    volumes:
+      - ./salons/hairos/data:/app/data
+      - ./salons/hairos/.env:/app/.env:ro
+      - ./salons/hairos/static:/app/static
+      - ./salons/hairos/price_data.py:/app/price_data.py:ro
+      - ./templates:/app/templates
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3

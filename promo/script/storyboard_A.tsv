@@ -1,0 +1,9 @@
+# Storyboard — Rolik A (TSV: start_s, frame, caption)
+
+0.0	frames/logo.png	Запись без перехлёстов — онлайн и в боте
+5.0	frames/schedule.png	Длительность услуги = свободное время мастера
+15.0	frames/services.png	Услуги с длительностью — окно не пересечётся
+30.0	frames/master_app_dashboard.png	Мастер видит день в телефоне
+42.0	frames/analytics.png	Финансы и KPI за минуту
+55.0	frames/settings.png	Буфер, часы, настройки салона
+65.0	frames/logo.png	14 дней бесплатно · ЦРМ+бот · Минск

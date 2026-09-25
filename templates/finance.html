@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Финансы — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+<div class="header">
+  <h1>Финансы</h1>
+</div>
+
+<div style="padding:16px">
+  <!-- Фильтр периода -->
+  <div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <label style="font-size:13px;color:var(--text-light)">С:</label>
+    <input type="date" id="fromDate" style="min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
+    <label style="font-size:13px;color:var(--text-light)">По:</label>
+    <input type="date" id="toDate" style="min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
+    <button class="btn btn-primary btn-sm" onclick="loadFinance()">Показать</button>
+    <a id="exportLink" class="btn btn-outline btn-sm" href="#">CSV</a>
+  </div>
+
+  <!-- Статистика -->
+  <div class="stats-grid" id="financeStats"></div>
+
+  <!-- Доход по мастерам / пространствам -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">{{ "Доход по пространствам" if org_type == "coworking" else "Доход по мастерам" }}</div>
+    <div id="byMaster"></div>
+  </div>
+
+  <!-- Доход по услугам / тарифам -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">{{ "Топ-10 тарифов" if org_type == "coworking" else "Топ-10 услуг" }}</div>
+    <div id="byService"></div>
+  </div>
+
+  <!-- Транзакции -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">Последние транзакции</div>
+    <div id="transactions"></div>
+  </div>
+
+  <!-- Добавить транзакцию -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">Добавить транзакцию</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <input id="txMaster" placeholder="Мастер" style="flex:1;min-width:120px;min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
+      <input id="txService" placeholder="Услуга" style="flex:1;min-width:120px;min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
+      <input id="txAmount" type="number" placeholder="Сумма" style="width:100px;min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
+      <select id="txType" style="min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
+        <option value="cash">Наличные</option>
+        <option value="card">Карта</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="addTransaction()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main-content -->
+
+<script>
+// Устанавливаем даты по умолчанию (последние 30 дней)
+const today = new Date();
+const monthAgo = new Date(today);
+monthAgo.setDate(monthAgo.getDate() - 30);
+
+document.getElementById('fromDate').value = monthAgo.toISOString().split('T')[0];
+document.getElementById('toDate').value = today.toISOString().split('T')[0];
+
+async function loadFinance() {
+  const from = document.getElementById('fromDate').value;
+  const to = document.getElementById('toDate').value;
+  window._txnLimit = 20;
+  window._txnShown = 20;
+
+  // Обновляем ссылку экспорта
+  document.getElementById('exportLink').href = `/api/finance/export?from_date=${from}&to_date=${to}`;
+
+  try {
+    const data = await fetch(`/api/finance/summary?from_date=${from}&to_date=${to}`).then(r => r.json());
+
+    // Статистика
+    document.getElementById('financeStats').innerHTML = `
+      <div class="stat-card"><div class="value">${data.total_revenue.toFixed(0)}</div><div class="label">Доход (BYN)</div></div>
+      <div class="stat-card"><div class="value">${data.transaction_count}</div><div class="label">Транзакций</div></div>
+      <div class="stat-card"><div class="value">${data.bookings_count}</div><div class="label">Записей</div></div>
+      <div class="stat-card"><div class="value">${data.avg_ticket.toFixed(0)}</div><div class="label">Средний чек</div></div>
+    `;
+
+    // По мастерам
+    if (data.by_master.length) {
+      document.getElementById('byMaster').innerHTML = data.by_master.map(m =>
+        `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>${m.master_name}</span>
+          <span style="font-weight:600">${m.total.toFixed(0)} BYN (${m.count})</span>
+        </div>`
+      ).join('');
+    } else {
+      document.getElementById('byMaster').innerHTML = '<div style="color:var(--text-light)">Нет данных</div>';
+    }
+
+    // По услугам
+    if (data.by_service.length) {
+      document.getElementById('byService').innerHTML = data.by_service.map(s =>
+        `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>${s.service_name || 'Без названия'}</span>
+          <span style="font-weight:600">${s.total.toFixed(0)} BYN (${s.count})</span>
+        </div>`
+      ).join('');
+    } else {
+      document.getElementById('byService').innerHTML = '<div style="color:var(--text-light)">Нет данных</div>';
+    }
+
+    // Транзакции (пагинация: 20 → «Показать ещё»)
+    window._txnLimit = window._txnLimit || 20;
+    const txns = await fetch(`/api/transactions?from_date=${from}&to_date=${to}&limit=${window._txnLimit}`).then(r => r.json());
+    if (txns.length) {
+      const shown = txns.slice(0, window._txnShown || 20);
+      window._txnShown = shown.length;
+      let html = shown.map(t =>
+        `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <span>${t.master_name} — ${t.service_name}</span>
+          <span style="font-weight:600">${t.amount} BYN (${t.payment_type === 'card' ? '💳' : '💵'})</span>
+        </div>`
+      ).join('');
+      if (shown.length < txns.length || window._txnLimit < 100) {
+        html += `<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px" onclick="loadMoreTxns()">Показать ещё (показано ${shown.length}${txns.length >= window._txnLimit ? '+' : ''})</button>`;
+      } else if (shown.length >= 20) {
+        html += `<div style="text-align:center;font-size:12px;color:var(--text-light);margin-top:8px">Показано ${shown.length} операций за период</div>`;
+      }
+      document.getElementById('transactions').innerHTML = html;
+    } else {
+      document.getElementById('transactions').innerHTML = '<div style="color:var(--text-light)">Нет транзакций</div>';
+    }
+
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+async function loadMoreTxns() {
+  window._txnLimit = Math.min(100, (window._txnLimit || 20) + 20);
+  window._txnShown = Math.min((window._txnShown || 20) + 20, window._txnLimit);
+  await loadFinance();
+}
+
+async function addTransaction() {
+  const master = document.getElementById('txMaster').value.trim();
+  const service = document.getElementById('txService').value.trim();
+  const amount = parseFloat(document.getElementById('txAmount').value);
+  const type = document.getElementById('txType').value;
+
+  if (!master || !amount) { alert('Заполните мастера и сумму'); return; }
+
+  await fetch('/api/transactions', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ master_name: master, service_name: service, amount, payment_type: type }),
+  });
+
+  document.getElementById('txMaster').value = '';
+  document.getElementById('txService').value = '';
+  document.getElementById('txAmount').value = '';
+  loadFinance();
+}
+
+loadFinance();
+</script>
+</body>
+</html>

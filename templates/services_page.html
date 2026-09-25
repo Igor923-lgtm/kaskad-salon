@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ "Тарифы" if org_type == "coworking" else "Услуги" }} — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css">
+  <style>
+    .category-card { background: var(--card); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .category-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; user-select: none; }
+    .category-header:hover { background: rgba(255,255,255,0.03); }
+    .category-title { font-weight: 600; font-size: 15px; }
+    .category-note { color: var(--text-light); font-size: 12px; margin-top: 2px; }
+    .category-count { color: var(--text-light); font-size: 13px; }
+    .category-actions { display: flex; gap: 6px; }
+    .category-body { border-top: 1px solid var(--border); }
+    .service-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .service-row:last-child { border-bottom: none; }
+    .service-name { flex: 1; font-size: 14px; }
+    .service-price { font-weight: 600; font-size: 14px; color: var(--primary); min-width: 80px; text-align: right; }
+    .service-actions { display: flex; gap: 4px; margin-left: 12px; }
+    .add-service-row { padding: 10px 16px; }
+    .empty-category { padding: 20px 16px; text-align: center; color: var(--text-light); font-size: 13px; }
+  </style>
+</head>
+<body>
+
+{% include '_sidebar.html' %}
+
+<div class="main-content">
+
+<div class="header">
+  <h1>{{ "Тарифы" if org_type == "coworking" else "Услуги" }}</h1>
+  <button class="btn btn-primary" onclick="openAddCategory()">+ Категория</button>
+</div>
+
+<div style="padding:16px" id="categoriesList"></div>
+
+</div>
+
+<!-- Модалка: добавить/редактировать услугу -->
+<div class="modal-overlay" id="serviceModal" style="display:none" onclick="if(event.target===this)closeServiceModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="serviceModalTitle">Новая услуга</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeServiceModal()">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-x:hidden">
+      <input type="hidden" id="svcEditId">
+      <div class="form-group">
+        <label>Категория</label>
+        <select id="svcCategory"></select>
+      </div>
+      <div class="form-group">
+        <label>Название</label>
+        <input type="text" id="svcName" placeholder="Стрижка длина 1">
+      </div>
+      <div class="form-group">
+        <label>Цена</label>
+        <input type="text" id="svcPrice" placeholder="75 или 85–90">
+      </div>
+      <div class="form-group">
+        <label>Длительность (мин)</label>
+        <input type="number" id="svcDuration" min="0" step="5" placeholder="0 = 15 мин по умолчанию">
+      </div>
+      <div class="form-group">
+        <label>Показывать</label>
+        <select id="svcGender">
+          <option value="all">Все</option>
+          <option value="f">Женщине</option>
+          <option value="m">Мужчине</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeServiceModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveService()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка: добавить категорию -->
+<div class="modal-overlay" id="categoryModal" style="display:none" onclick="if(event.target===this)closeCategoryModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Новая категория</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeCategoryModal()">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-x:hidden">
+      <div class="form-group">
+        <label>Название</label>
+        <input type="text" id="catTitle" placeholder="💇‍♀️ Название раздела">
+      </div>
+      <div class="form-group">
+        <label>Подпись (необязательно)</label>
+        <input type="text" id="catNote" placeholder="с учётом мытья">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCategoryModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveCategory()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let categories = [];
+let services = [];
+
+async function loadData() {
+  const r = await fetch('/api/services/grouped');
+  categories = await r.json();
+  const r2 = await fetch('/api/services');
+  services = await r2.json();
+  render();
+}
+
+function formatDur(d) {
+  const mins = Math.max(15, Math.ceil((parseInt(d, 10) || 0) / 15) * 15);
+  if (mins < 60) return mins + ' мин';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h} ч ${m} мин` : `${h} ч`;
+}
+
+function render() {
+  const el = document.getElementById('categoriesList');
+  if (!categories.length) {
+    el.innerHTML = '<div class="empty-category">Нет категорий. Добавьте первую.</div>';
+    return;
+  }
+  el.innerHTML = categories.map(cat => {
+    const svcs = cat.services || [];
+    return `
+      <div class="category-card">
+        <div class="category-header" onclick="this.parentElement.querySelector('.category-body').style.display = this.parentElement.querySelector('.category-body').style.display === 'none' ? 'block' : 'none'">
+          <div>
+            <div class="category-title">${cat.title}</div>
+            ${cat.note ? `<div class="category-note">${cat.note}</div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span class="category-count">${svcs.length} услуг</span>
+            <div class="category-actions">
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openAddService(${cat.index})">+ Услуга</button>
+            </div>
+          </div>
+        </div>
+        <div class="category-body">
+          ${svcs.length === 0 ? '<div class="empty-category">Нет услуг</div>' :
+            svcs.map(s => `
+              <div class="service-row">
+                <div class="service-name">${s.name}</div>
+                <div class="service-price">${s.price || '—'}</div>
+                <div class="service-duration" style="min-width:64px;text-align:right;color:var(--text-light);font-size:12px">${formatDur(s.duration_minutes)}</div>
+                <div class="service-actions">
+                  <button class="btn btn-outline btn-sm" onclick="editService(${s.id})">✏️</button>
+                  <button class="btn btn-outline btn-sm" onclick="deleteService(${s.id})" style="color:var(--danger)">✕</button>
+                </div>
+              </div>
+            `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function populateCategorySelect(selectedIndex) {
+  const sel = document.getElementById('svcCategory');
+  sel.innerHTML = categories.map(c =>
+    `<option value="${c.index}" ${c.index === selectedIndex ? 'selected' : ''}>${c.title}</option>`
+  ).join('');
+}
+
+function openAddService(categoryIndex) {
+  document.getElementById('serviceModalTitle').textContent = 'Новая услуга';
+  document.getElementById('svcEditId').value = '';
+  document.getElementById('svcName').value = '';
+  document.getElementById('svcPrice').value = '';
+  document.getElementById('svcDuration').value = '';
+  document.getElementById('svcGender').value = 'all';
+  populateCategorySelect(categoryIndex);
+  document.getElementById('serviceModal').style.display = 'flex';
+}
+
+function editService(id) {
+  const svc = services.find(s => s.id === id);
+  if (!svc) return;
+  document.getElementById('serviceModalTitle').textContent = 'Редактировать услугу';
+  document.getElementById('svcEditId').value = id;
+  document.getElementById('svcName').value = svc.name;
+  document.getElementById('svcPrice').value = svc.price;
+  document.getElementById('svcDuration').value = svc.duration_minutes || '';
+  document.getElementById('svcGender').value = svc.gender || 'all';
+  populateCategorySelect(svc.category_index);
+  document.getElementById('serviceModal').style.display = 'flex';
+}
+
+function closeServiceModal() {
+  document.getElementById('serviceModal').style.display = 'none';
+}
+
+function showSavedToast(msg) {
+  let el = document.getElementById('pageSaved');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pageSaved';
+    el.className = 'saved';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg || '✓ Сохранено';
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 2000);
+}
+
+async function saveService() {
+  const id = document.getElementById('svcEditId').value;
+  const catIndex = parseInt(document.getElementById('svcCategory').value);
+  const cat = categories.find(c => c.index === catIndex);
+  const name = document.getElementById('svcName').value.trim();
+  const price = document.getElementById('svcPrice').value.trim();
+  const duration_minutes = Math.max(0, parseInt(document.getElementById('svcDuration').value, 10) || 0);
+  const gender = document.getElementById('svcGender').value;
+
+  if (!name) { alert('Введите название'); return; }
+
+  if (id) {
+    await fetch(`/api/services/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, price, gender, duration_minutes, category_title: cat?.title })
+    });
+  } else {
+    await fetch('/api/services', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        category_title: cat?.title || '',
+        category_note: cat?.note || '',
+        category_index: catIndex,
+        name, price, gender, duration_minutes
+      })
+    });
+  }
+  closeServiceModal();
+  await loadData();
+  showSavedToast('✓ Услуга сохранена');
+}
+
+async function deleteService(id) {
+  if (!confirm('Удалить услугу?')) return;
+  await fetch(`/api/services/${id}`, { method: 'DELETE' });
+  loadData();
+}
+
+function openAddCategory() {
+  document.getElementById('catTitle').value = '';
+  document.getElementById('catNote').value = '';
+  document.getElementById('categoryModal').style.display = 'flex';
+}
+
+function closeCategoryModal() {
+  document.getElementById('categoryModal').style.display = 'none';
+}
+
+async function saveCategory() {
+  const title = document.getElementById('catTitle').value.trim();
+  const note = document.getElementById('catNote').value.trim();
+  if (!title) { alert('Введите название'); return; }
+  await fetch('/api/services/categories', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ title, note })
+  });
+  closeCategoryModal();
+  loadData();
+}
+
+loadData();
+</script>
+</body>
+</html>

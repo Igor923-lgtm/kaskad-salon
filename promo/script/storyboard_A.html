@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<title>Промо A — ЦРМ+бот (screen record this)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Inter, system-ui, sans-serif; background: #0f0f1a; color: #e8e8f0; overflow: hidden; }
+  #stage { width: 100vw; height: 100vh; position: relative; display: flex; align-items: center; justify-content: center; }
+  #cap { position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.65); padding: 12px 28px; border-radius: 999px; font-size: clamp(18px, 3vw, 28px); max-width: 90%; text-align: center; z-index: 10; }
+  #frame { max-width: 92%; max-height: 78%; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); object-fit: contain; }
+  #badge { position: absolute; top: 4%; left: 4%; font-size: 14px; opacity: 0.7; letter-spacing: 0.06em; text-transform: uppercase; z-index: 10; }
+  #cta { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #0f0f1a; z-index: 20; text-align: center; padding: 24px; }
+  #cta h1 { font-size: clamp(28px, 5vw, 48px); background: linear-gradient(135deg,#6C63FF,#a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  #cta p { font-size: clamp(16px, 2.5vw, 22px); color: #aaa; }
+  #cta .price { color: #6C63FF; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="badge">salon CRM · bot · master app</div>
+  <img id="frame" alt="" />
+  <div id="cap"></div>
+  <div id="cta">
+    <img src="../frames/logo.png" width="120" alt=""/>
+    <h1>Запись без перехлёстов</h1>
+    <p>ЦРМ + Telegram-бот + приложение мастеров</p>
+    <p class="price">14 дней бесплатно · Старт 69 / Салон 129 BYN</p>
+    <p>Минск</p>
+  </div>
+</div>
+<script>
+const scenes = [
+  { t: 5000, src: '../frames/logo.png', cap: 'Запись без перехлёстов — онлайн и в боте', dur: 5000 },
+  { t: 0, src: '../frames/services.png', cap: 'Длительность услуги — окно не пересечётся', dur: 12000 },
+  { t: 0, src: '../frames/schedule.png', cap: 'Шахматка: 2 часа заняты, 10:30 недоступно', dur: 15000 },
+  { t: 0, src: '../frames/master_app_dashboard.png', cap: 'Приложение мастеров — день в телефоне', dur: 13000 },
+  { t: 0, src: '../frames/analytics.png', cap: 'Финансы и KPI за минуту', dur: 10000 },
+  { t: 0, src: '../frames/settings.png', cap: 'Буфер, часы, настройки салона', dur: 10000 },
+  { t: 0, src: null, cap: '', dur: 8000, cta: true },
+];
+let i = 0;
+function play() {
+  const s = scenes[i % scenes.length];
+  if (s.cta) {
+    document.getElementById('frame').style.display = 'none';
+    document.getElementById('cap').style.display = 'none';
+    document.getElementById('cta').style.display = 'flex';
+  } else {
+    document.getElementById('cta').style.display = 'none';
+    document.getElementById('frame').style.display = 'block';
+    document.getElementById('cap').style.display = 'block';
+    document.getElementById('frame').src = s.src;
+    document.getElementById('cap').textContent = s.cap;
+  }
+  i++;
+  setTimeout(play, s.dur);
+}
+play();
+</script>
+</body>
+</html>
