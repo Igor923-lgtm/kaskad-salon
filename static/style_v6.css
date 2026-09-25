@@ -44,7 +44,7 @@
   --radius-sm: 10px;
 
   /* Анимации */
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 /* Светлая тема */
@@ -130,9 +130,9 @@ body {
 
 /* ── Шапка ────────────────────────────── */
 .header {
-  background: rgba(15,15,26,0.85);
-  backdrop-filter: var(--glass);
-  -webkit-backdrop-filter: var(--glass);
+  background: var(--header-bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-bottom: 1px solid var(--border);
   padding: 16px 24px;
   display: flex;
@@ -171,7 +171,7 @@ body {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: var(--transition);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   text-decoration: none;
   position: relative;
   overflow: hidden;
@@ -211,7 +211,7 @@ body {
   box-shadow: var(--shadow);
   padding: 20px;
   margin-bottom: 16px;
-  transition: var(--transition);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .card:hover {
   border-color: rgba(108,99,255,0.2);
@@ -229,9 +229,9 @@ body {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0;
 }
 .badge-new { background: rgba(255,215,0,0.15); color: var(--accent); }
 .badge-confirmed { background: rgba(108,99,255,0.15); color: var(--primary); }
@@ -608,7 +608,7 @@ body {
 .sidebar .logo-text {
   font-size: 24px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   color: #8B84FF;
 }
 .sidebar .logo-sub {
@@ -702,7 +702,7 @@ body {
   font-weight: 600;
   color: var(--text-light);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   border-bottom: 1px solid var(--border);
 }
 .crm-table td {
