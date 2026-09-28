@@ -3,8 +3,10 @@
 .env.*
 !.env.example
 .env.save
-# Contains SSH password — never commit
+# Contains SSH passwords — never commit
 deploy_settings.py
+deploy_secrets.py
+update_kaskad_env.py
 
 # Python
 __pycache__/
@@ -19,6 +21,10 @@ build/
 *.db
 *.db.bak*
 *.db-journal
+*.db-wal
+*.db-shm
+# Случайно созданный каталог с windows-путём (не проект; \\ = литеральный бэкслэш)
+C\\Temp/
 
 # Virtual environments
 venv/

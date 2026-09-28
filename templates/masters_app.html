@@ -1,47 +1,43 @@
 <!DOCTYPE html>
-<html lang="ru" >
+<html lang="ru" class="light-theme">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Мастерское приложение — {{ salon_name }} CRM</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f1a; color: #e8e8f0; }
     .main-content { padding: 20px 20px 40px; max-width: 900px; }
-    h1 { font-size: 24px; margin-bottom: 16px; color: #6C63FF; font-weight: 800; }
-    h2 { font-size: 17px; margin-bottom: 12px; }
-    .card { background: #161625; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
-    .setting { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 12px; }
+    .page-title { font-size: 24px; margin-bottom: 16px; color: var(--text); font-weight: 700; letter-spacing: -0.4px; }
+    h2 { font-size: 17px; margin-bottom: 12px; color: var(--text); font-weight: 600; letter-spacing: -0.2px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid rgba(60,60,67,0.18); gap: 12px; }
     .setting:last-child { border-bottom: none; }
-    .setting-label { font-size: 14px; }
-    .setting-desc { font-size: 12px; color: #8888a0; margin-top: 2px; }
+    .setting-label { font-size: 14px; color: var(--text); }
+    .setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
     .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; flex-shrink: 0; }
     .toggle input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; inset: 0; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.2); border-radius: 13px; transition: 0.3s; }
-    .slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: #e8e8f0; border-radius: 50%; transition: 0.3s; }
-    .toggle input:checked + .slider { background: linear-gradient(135deg, #6C63FF, #a855f7); border-color: transparent; }
-    .toggle input:checked + .slider:before { background: #fff; }
+    .slider { position: absolute; inset: 0; background: #E5E5EA; border-radius: 13px; transition: 0.3s; }
+    .slider:before { content: ""; position: absolute; width: 22px; height: 22px; left: 2px; bottom: 2px; background: #fff; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .toggle input:checked + .slider { background: #007AFF; }
     .toggle input:checked + .slider:before { transform: translateX(22px); }
-    .btn { display: inline-block; padding: 8px 16px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .btn-primary { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; }
-    .btn-danger { background: rgba(255,60,60,0.85); color: #fff; }
-    .btn-ghost { background: rgba(255,255,255,0.06); color: #e8e8f0; border: 1px solid rgba(255,255,255,0.1); }
+    .btn-danger { background: #FF3B30; color: #fff; }
+    .btn-ghost { background: #fff; color: var(--text); border: 1px solid rgba(60,60,67,0.24); }
+    .btn-ghost:hover { background: #F2F2F7; }
     .table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .table th, .table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .table th { color: #8888a0; font-weight: 500; font-size: 11px; text-transform: uppercase; }
-    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: rgba(108,99,255,0.2); color: #a8b0ff; }
-    .badge.green { background: rgba(46,204,113,0.15); color: #2ECC71; }
-    .saved { position: fixed; bottom: 20px; right: 20px; background: #2ECC71; color: #fff; padding: 12px 24px; border-radius: 10px; display: none; font-size: 14px; z-index: 100; }
-    .hint { font-size: 12px; color: #8888a0; margin-top: 6px; }
-    .links a { display: inline-block; margin: 4px 8px 4px 0; padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,0.05); color: #a8b0ff; text-decoration: none; font-size: 13px; border: 1px solid rgba(255,255,255,0.08); }
-    select.mini { padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #e8e8f0; font-size: 13px; }
+    .table th, .table td { padding: 8px 10px; text-align: left; border-bottom: 0.5px solid rgba(60,60,67,0.18); }
+    .table th { color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(0,122,255,0.12); color: #007AFF; }
+    .badge.green { background: rgba(52,199,89,0.15); color: #0B6B2E; }
+    .saved { position: fixed; bottom: 20px; right: 20px; background: #34C759; color: #fff; padding: 12px 24px; border-radius: 12px; display: none; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 100; }
+    .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    .links a { display: inline-block; margin: 4px 8px 4px 0; padding: 8px 14px; border-radius: 10px; background: #fff; color: #007AFF; text-decoration: none; font-size: 13px; font-weight: 500; border: 1px solid rgba(60,60,67,0.18); }
+    .links a:hover { background: #F2F2F7; }
+    select.mini { padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(60,60,67,0.24); background: #fff; color: var(--text); font-size: 13px; }
   </style>
 </head>
 <body>
 {% include '_sidebar.html' %}
 <div class="main-content">
-  <h1>📱 Мастерское приложение</h1>
+  <h1 class="page-title"><i class="fa-solid fa-mobile-screen-button" style="font-size:20px;color:#8E8E93;margin-right:8px;"></i>Мастерское приложение</h1>
 
   <!-- Ссылки -->
   <div class="card">
@@ -147,7 +143,7 @@ async function loadSessions() {
     var d = await api('/api/masters/sessions');
     var tb = document.querySelector('#sessionsTable tbody');
     if (!d.sessions.length) {
-      tb.innerHTML = '<tr><td colspan="5" style="color:#8888a0">Нет активных сессий</td></tr>';
+      tb.innerHTML = '<tr><td colspan="5" style="color:#8E8E93">Нет активных сессий</td></tr>';
       return;
     }
     tb.innerHTML = d.sessions.map(function(s, i) {
@@ -206,7 +202,7 @@ async function loadMasters() {
         '</select></td>' +
       '</tr>';
     }));
-    tb.innerHTML = rows.join('') || '<tr><td colspan="3" style="color:#8888a0">Нет мастеров</td></tr>';
+    tb.innerHTML = rows.join('') || '<tr><td colspan="3" style="color:#8E8E93">Нет мастеров</td></tr>';
   } catch (e) { alert(e.message); }
 }
 
@@ -226,9 +222,7 @@ async function savePermQuick(id, view) {
   } catch (e) { alert(e.message); }
 }
 
-function esc(s) {
-  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-}
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 
 loadLogin();
 loadSessions();

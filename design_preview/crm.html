@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  :root{
+    --blue:#007AFF; --green:#34C759; --orange:#FF9500; --red:#FF3B30;
+    --sec:#8E8E93; --sep:rgba(60,60,67,.18); --sidebar:#F5F5F7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+  html,body{width:1440px;height:1024px;overflow:hidden}
+  body{font-family:-apple-system,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+       background:#fff;color:#000;display:flex}
+
+  /* ── sidebar ── */
+  .side{width:248px;background:var(--sidebar);border-right:.5px solid var(--sep);
+        padding:22px 14px;display:flex;flex-direction:column}
+  .brand{display:flex;gap:11px;align-items:center;padding:0 8px 8px 20px}
+  .brand .logo{width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(135deg,#007AFF,#5E5CE6);color:#fff;font-weight:800;font-size:17px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(0,122,255,.3)}
+  .brand b{font-size:15px;font-weight:700;letter-spacing:-.2px;display:block}
+  .brand i{font-size:11.5px;font-style:normal;color:var(--sec);font-weight:500}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav a{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;
+         font-size:13.5px;font-weight:500;color:#1c1c1e;text-decoration:none;letter-spacing:-.1px}
+  .nav a .ic{width:18px;text-align:center;color:#6e6e73;font-size:14px}
+  .nav a.on{background:rgba(0,0,0,.07);font-weight:600}
+  .nav a.on .ic{color:var(--blue)}
+  .side .spacer{flex:1}
+  .side .foot{border-top:.5px solid var(--sep);padding-top:12px;margin-top:12px}
+  .side .foot a{color:var(--sec)}
+
+  /* ── main ── */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .top{display:flex;align-items:flex-end;justify-content:space-between;
+       padding:26px 32px 18px;border-bottom:.5px solid var(--sep)}
+  .top h1{font-size:30px;font-weight:800;letter-spacing:-.7px}
+  .top .sub{font-size:13.5px;color:var(--sec);margin-top:4px;font-weight:500}
+  .top .right{display:flex;gap:14px;align-items:center}
+  .btn{background:var(--blue);color:#fff;font-size:14px;font-weight:600;
+       padding:9px 16px;border-radius:10px;letter-spacing:-.1px;
+       box-shadow:0 6px 16px rgba(0,122,255,.3)}
+  .ghost{font-size:13.5px;color:var(--sec);font-weight:500}
+
+  /* KPI */
+  .kpis{display:flex;padding:22px 32px 24px;gap:0}
+  .kpi{flex:1;padding-right:34px;position:relative}
+  .kpi+.kpi{padding-left:34px;border-left:.5px solid var(--sep)}
+  .kpi .lbl{font-size:12.5px;color:var(--sec);font-weight:600;letter-spacing:.2px}
+  .kpi .num{font-size:40px;font-weight:800;letter-spacing:-1.4px;margin-top:6px;
+            font-variant-numeric:tabular-nums}
+  .kpi .delta{font-size:13px;font-weight:600;margin-top:6px}
+  .up{color:#0b6b2e}.down{color:#8a4b00}.flat{color:var(--sec);font-weight:500}
+
+  /* schedule */
+  .sched{flex:1;padding:4px 32px 0;min-height:0;display:flex;flex-direction:column}
+  .sched .hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .sched .hdr b{font-size:16px;font-weight:700;letter-spacing:-.2px}
+  .legend{display:flex;gap:16px;font-size:12.5px;color:var(--sec);font-weight:500;align-items:center}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+  .grid{border:.5px solid var(--sep);border-radius:12px;overflow:hidden;background:#fff}
+  .grow{display:grid;grid-template-columns:150px repeat(13,1fr);height:56px;
+        border-bottom:.5px solid var(--sep);position:relative}
+  .grow:last-child{border-bottom:none}
+  .grow.head{height:34px;background:#FAFAFC}
+  .gcell{border-left:.5px solid var(--sep);position:relative}
+  .gcell:first-child{border-left:none}
+  .grow .name{display:flex;flex-direction:column;justify-content:center;padding-left:16px;
+              background:#FAFAFC}
+  .grow.head .name{justify-content:center}
+  .grow .name b{font-size:13.5px;font-weight:600;letter-spacing:-.1px}
+  .grow .name i{font-size:11.5px;font-style:normal;color:var(--sec)}
+  .grow.head .hh{display:flex;align-items:center;justify-content:center;
+                 font-size:11.5px;color:var(--sec);font-weight:600;font-variant-numeric:tabular-nums}
+  .blk{position:absolute;top:7px;bottom:7px;border-radius:8px;
+       background:rgba(0,122,255,.12);border:1px solid rgba(0,122,255,.35);
+       display:flex;flex-direction:column;justify-content:center;padding:0 10px;overflow:hidden;z-index:2}
+  .blk b{font-size:12.5px;font-weight:700;color:#0a3f8f;letter-spacing:-.1px;white-space:nowrap}
+  .blk i{font-size:11px;font-style:normal;color:#3a6ea5;font-weight:500;white-space:nowrap}
+  .blk.mint{background:rgba(52,199,89,.13);border-color:rgba(52,199,89,.4)}
+  .blk.mint b{color:#0b6b2e}.blk.mint i{color:#1d7a41}
+  .blk.sand{background:rgba(255,149,0,.13);border-color:rgba(255,149,0,.4)}
+  .blk.sand b{color:#8a4b00}.blk.sand i{color:#a05f10}
+
+  /* ── right rail ── */
+  .rail{width:330px;border-left:.5px solid var(--sep);padding:26px 22px;background:#FBFBFD;
+        display:flex;flex-direction:column}
+  .rail h3{font-size:16px;font-weight:700;letter-spacing:-.2px}
+  .rail .date{font-size:12.5px;color:var(--sec);margin-top:3px;font-weight:500}
+  .agenda{margin-top:16px;display:flex;flex-direction:column}
+  .ag{display:flex;gap:14px;padding:13px 0;position:relative;align-items:baseline}
+  .ag+.ag::before{content:"";position:absolute;top:0;left:0;right:0;height:.5px;background:var(--sep)}
+  .ag .tm{font-size:14px;font-weight:700;color:var(--blue);width:46px;
+          font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+  .ag .bd b{display:block;font-size:14.5px;font-weight:600;letter-spacing:-.2px}
+  .ag .bd i{display:block;font-size:12.5px;font-style:normal;color:var(--sec);margin-top:2px}
+  .ag .st{margin-left:auto;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px}
+  .st.ok{background:rgba(52,199,89,.14);color:#0b6b2e}
+  .st.wait{background:rgba(255,149,0,.14);color:#8a4b00}
+  .rail .more{margin-top:auto;font-size:13.5px;color:var(--blue);font-weight:600;padding-top:14px}
+</style>
+</head>
+<body>
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">К</div>
+      <div><b>Коворкинг</b><i>Садовая · CRM</i></div>
+    </div>
+    <nav class="nav">
+      <a class="on"><span class="ic">◈</span>Дашборд</a>
+      <a><span class="ic">▦</span>Занятость</a>
+      <a><span class="ic">☰</span>Аренды</a>
+      <a><span class="ic">⬒</span>Пространства</a>
+      <a><span class="ic">◇</span>Тарифы</a>
+      <a><span class="ic">◉</span>Арендаторы</a>
+      <a><span class="ic">₽</span>Финансы</a>
+      <a><span class="ic">✉</span>Рассылки</a>
+    </nav>
+    <div class="spacer"></div>
+    <nav class="nav foot">
+      <a><span class="ic">⚙</span>Настройки</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="top">
+      <div>
+        <h1>Дашборд</h1>
+        <div class="sub">Суббота, 26 сентября · открыто до 21:00</div>
+      </div>
+      <div class="right">
+        <span class="ghost">Обновлено только что</span>
+        <span class="btn">+ Новая аренда</span>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi">
+        <div class="lbl">АРЕНД СЕГОДНЯ</div>
+        <div class="num">24</div>
+        <div class="delta up">▲ 4 к вчера</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">ЗАПОЛНЕНИЕ</div>
+        <div class="num">78%</div>
+        <div class="delta up">▲ 6 п.п. к среднему</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">НЕ ОПЛАЧЕНО</div>
+        <div class="num">4 280 р.</div>
+        <div class="delta down">3 счета · просрочены</div>
+      </div>
+      <div class="kpi">
+        <div class="lbl">АРЕНДАТОРОВ</div>
+        <div class="num">137</div>
+        <div class="delta flat">+5 за неделю</div>
+      </div>
+    </div>
+
+    <div class="sched">
+      <div class="hdr">
+        <b>Занятость пространств · сегодня</b>
+        <div class="legend">
+          <span><span class="dot" style="background:rgba(0,122,255,.35)"></span>Аренда</span>
+          <span><span class="dot" style="background:rgba(52,199,89,.4)"></span>Подтверждено</span>
+          <span><span class="dot" style="background:rgba(255,149,0,.4)"></span>Ожидает оплаты</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="grow head">
+          <div class="gcell name"><b style="font-size:11.5px;color:#8E8E93;font-weight:600">ПРОСТРАНСТВО</b></div>
+          <div class="gcell hh">9</div><div class="gcell hh">10</div><div class="gcell hh">11</div>
+          <div class="gcell hh">12</div><div class="gcell hh">13</div><div class="gcell hh">14</div>
+          <div class="gcell hh">15</div><div class="gcell hh">16</div><div class="gcell hh">17</div>
+          <div class="gcell hh">18</div><div class="gcell hh">19</div><div class="gcell hh">20</div>
+          <div class="gcell hh">21</div>
+        </div>
+
+        <div class="grow">
+          <div class="gcell name"><b>Рабочее место А</b><i>12 р./час</i></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div>
+          <div class="blk" style="left:calc(150px + (100% - 150px) * 9 / 13 + 3px);
+               width:calc((100% - 150px) * 2 / 13 - 6px)">
+            <b>Артём К.</b><i>18:00 – 20:00</i></div>
+        </div>
+
+        <div class="grow">
+          <div class="gcell name"><b>Рабочее место Б</b><i>12 р./час</i></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div>
+          <div class="blk mint" style="left:calc(150px + (100% - 150px) * 5 / 13 + 3px);
+               width:calc((100% - 150px) * 2 / 13 - 6px)">
+            <b>Анна М.</b><i>14:00 – 16:00</i></div>
+        </div>
+
+        <div class="grow">
+          <div class="gcell name"><b>Переговорная</b><i>25 р./час</i></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div>
+          <div class="blk sand" style="left:calc(150px + (100% - 150px) * 10 / 13 + 3px);
+               width:calc((100% - 150px) * 1 / 13 - 6px)">
+            <b>Дмитрий С.</b><i>19:00</i></div>
+        </div>
+
+        <div class="grow">
+          <div class="gcell name"><b>Мастер-класс</b><i>30 р./час</i></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div><div class="gcell"></div><div class="gcell"></div>
+          <div class="gcell"></div>
+          <div class="blk" style="left:calc(150px + (100% - 150px) * 2 / 13 + 3px);
+               width:calc((100% - 150px) * 3 / 13 - 6px)">
+            <b>Ольга П. +4</b><i>11:00 – 14:00 · оплачено</i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT RAIL -->
+  <aside class="rail">
+    <h3>Ближайшие аренды</h3>
+    <div class="date">Сегодня · 6 в ближайшие часы</div>
+    <div class="agenda">
+      <div class="ag"><span class="tm">16:30</span>
+        <div class="bd"><b>Мария Гущина</b><i>Рабочее место Б · 2 часа</i></div>
+        <span class="st ok">Оплачена</span></div>
+      <div class="ag"><span class="tm">18:00</span>
+        <div class="bd"><b>Артём Ковалёв</b><i>Рабочее место А · до 20:00</i></div>
+        <span class="st ok">Подтв.</span></div>
+      <div class="ag"><span class="tm">19:00</span>
+        <div class="bd"><b>Дмитрий Соколов</b><i>Переговорная · 1 час</i></div>
+        <span class="st wait">Ожидает</span></div>
+      <div class="ag"><span class="tm">20:00</span>
+        <div class="bd"><b>Кирилл Лапин</b><i>Рабочее место А · вечер</i></div>
+        <span class="st ok">Оплачена</span></div>
+    </div>
+    <div class="more">Все аренды →</div>
+  </aside>
+</body>
+</html>

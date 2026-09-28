@@ -1,5 +1,5 @@
 /* Minimal SW: cache shell assets, avoid broken registration */
-const CACHE = 'kaskad-v2';
+const CACHE = 'kaskad-v4';
 const ASSETS = [
   '/static/style_v6.css',
   '/static/icon-192.png',

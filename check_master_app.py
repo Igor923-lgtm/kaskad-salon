@@ -1,3 +1,4 @@
+import deploy_secrets
 import paramiko
 import sqlite3
 import os
@@ -6,7 +7,7 @@ TMP = os.environ.get('TEMP', 'C:\\Temp')
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('92.246.128.94', username='root', password='kf24mP2c7KQBViNi', timeout=15)
+ssh.connect('92.246.128.94', username='root', password=deploy_secrets.PASS_KASKAD, timeout=15)
 
 # Check master endpoints
 print("=== Master Endpoints (hairos :8005) ===")

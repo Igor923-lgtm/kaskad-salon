@@ -6,18 +6,18 @@
   <title>{{ salon_name }}</title>
   <style>
     :root {
-      --primary: #6C63FF;
-      --primary-dark: #5A52D5;
-      --bg: #0f0f1a;
-      --card: #161625;
-      --text: #e8e8f0;
-      --text-light: #8888a0;
-      --border: rgba(255,255,255,0.08);
-      --radius: 16px;
+      --primary: #007AFF;
+      --primary-dark: #0062CC;
+      --bg: #F5F5F7;
+      --card: #FFFFFF;
+      --text: #000000;
+      --text-light: #8E8E93;
+      --border: rgba(60,60,67,0.18);
+      --radius: 12px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       font-size: 14px;
@@ -25,21 +25,21 @@
       max-width: 480px;
       margin: 0 auto;
     }
-    h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; text-align: center; color: var(--text); }
+    h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; text-align: center; color: var(--text); letter-spacing: -0.2px; }
     .steps { display: flex; gap: 6px; margin-bottom: 16px; }
     .step {
-      flex: 1; text-align: center; padding: 8px 4px; border-radius: 20px;
-      font-size: 12px; font-weight: 500; background: rgba(255,255,255,0.05); color: var(--text-light);
+      flex: 1; text-align: center; padding: 8px 4px; border-radius: 999px;
+      font-size: 12px; font-weight: 500; background: #E5E5EA; color: var(--text-light);
     }
-    .step.active { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; }
-    .step.done { background: rgba(46,204,113,0.15); color: #2ECC71; }
+    .step.active { background: #007AFF; color: #fff; }
+    .step.done { background: rgba(52,199,89,0.15); color: #0B6B2E; }
     .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
     .option {
-      background: var(--card); border: 2px solid var(--border); border-radius: var(--radius);
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 14px; cursor: pointer; transition: all 0.2s;
     }
-    .option:hover { border-color: var(--primary); background: rgba(108,99,255,0.05); }
-    .option.selected { border-color: var(--primary); background: rgba(108,99,255,0.1); }
+    .option:hover { border-color: var(--primary); background: rgba(0,122,255,0.05); }
+    .option.selected { border-color: var(--primary); background: rgba(0,122,255,0.08); }
     .option .title { font-weight: 600; font-size: 15px; color: var(--text); }
     .option .sub { color: var(--text-light); font-size: 13px; margin-top: 2px; }
     .time-grid {
@@ -48,29 +48,30 @@
     }
     .time-slot {
       min-height: 42px; display: flex; align-items: center; justify-content: center;
-      border: 2px solid var(--border); border-radius: 10px; font-weight: 600;
-      cursor: pointer; transition: all 0.2s; color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; color: var(--text); background: #fff;
     }
-    .time-slot:hover { border-color: var(--primary); background: rgba(108,99,255,0.05); }
-    .time-slot.selected { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; border-color: var(--primary); }
+    .time-slot:hover { border-color: var(--primary); background: rgba(0,122,255,0.05); }
+    .time-slot.selected { background: #007AFF; color: #fff; border-color: var(--primary); }
     .time-slot.unavailable { opacity: 0.25; pointer-events: none; }
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; color: var(--text-light); }
     .form-group input, .form-group select {
-      width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--border);
-      border-radius: 10px; font-size: 14px; outline: none; background: rgba(255,255,255,0.05); color: var(--text);
+      width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid rgba(60,60,67,0.24);
+      border-radius: 10px; font-size: 15px; outline: none; background: #fff; color: var(--text); font-family: inherit;
     }
-    .form-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(108,99,255,0.2); }
+    .form-group input:focus { border-color: #007AFF; }
     .btn {
       display: block; width: 100%; min-height: 44px; border: none; border-radius: 12px;
-      font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit;
     }
-    .btn-primary { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; box-shadow: 0 4px 15px rgba(108,99,255,0.3); }
-    .btn-primary:hover { box-shadow: 0 6px 25px rgba(108,99,255,0.4); transform: translateY(-1px); }
-    .btn-outline { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); margin-top: 8px; }
+    .btn-primary { background: #007AFF; color: #fff; }
+    .btn-primary:hover { background: #0062CC; }
+    .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); margin-top: 8px; }
+    .btn-outline:hover { background: #F2F2F7; }
     .success { text-align: center; padding: 24px 0; }
     .success .icon { font-size: 48px; margin-bottom: 12px; }
-    .success h2 { color: var(--primary); }
+    .success h2 { color: #007AFF; }
     .success p { color: var(--text-light); margin-top: 8px; }
     .back { display: block; text-align: center; margin-top: 12px; color: var(--text-light); font-size: 13px; cursor: pointer; }
     .back:hover { color: var(--primary); }
@@ -163,7 +164,7 @@ async function init() {
       fetch('/api/masters').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
     ]);
   } catch(e) {
-    document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:#e53935">Ошибка загрузки. Попробуйте обновить страницу.</p></div>';
+    document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:#FF3B30">Ошибка загрузки. Попробуйте обновить страницу.</p></div>';
     return;
   }
 
@@ -174,7 +175,7 @@ async function init() {
 
   if (urlMaster) {
     if (!masters.find(m => m.name === urlMaster)) {
-      document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:#e53935">Мастер не найден.</p></div>';
+      document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:#FF3B30">Мастер не найден.</p></div>';
       return;
     }
     selMaster = urlMaster;
@@ -282,7 +283,7 @@ function toggleMultiService(el) {
       duration_minutes: parseInt(el.getAttribute('data-dur'), 10) || 0,
     });
     el.querySelector('.title').textContent = '☑ ' + el.getAttribute('data-name');
-    el.style.background = 'rgba(108,99,255,0.12)';
+    el.style.background = 'rgba(0,122,255,0.12)';
   }
   const totalDur = selectedMulti.reduce((a, s) => a + (s.duration_minutes > 0 ? Math.ceil(s.duration_minutes/15)*15 : 15), 0);
   document.getElementById('multiSummary').textContent = selectedMulti.length

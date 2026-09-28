@@ -1,4 +1,5 @@
 """deploy_fix.py — Исправленный деплой на Oracle Linux сервер."""
+import deploy_secrets
 import paramiko
 import os
 import sys
@@ -6,7 +7,7 @@ import time
 
 NEW_SERVER = "45.159.172.228"
 USER = "root"
-PASS = "DndhJ98X1U8LZg24"
+PASS = deploy_secrets.PASS_NEW
 LOCAL_PROJECT = r"C:\Users\User\mimo\kaskad-multitenant"
 
 SERVICES = [

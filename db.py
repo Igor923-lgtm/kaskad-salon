@@ -1288,6 +1288,61 @@ async def get_range_ids_for_booking(booking_id: int) -> list:
         return [booking_id]
 
 
+async def expand_booking_ranges(rows: list) -> list:
+    """Расширить выбранные слоты до полных диапазонов.
+
+    Напоминания выбирают слоты узким окном по времени начала (±10 мин), поэтому
+    диапазон 18:00–20:00 входит в окно по одному слоту — без расширения каждые
+    15 минут уходило бы отдельное сообщение. Для каждого выбранного слота берём
+    всю consecutive-цепочку того же клиента/мастера/даты/услуги. Несвязанные
+    брони одного дня не сливаются. Возвращает строки с дедупликацией по id.
+    """
+    if not rows:
+        return []
+    by_key: dict = {}
+    for r in rows:
+        key = (
+            r.get("telegram_id"),
+            r.get("master_name"),
+            r.get("date"),
+            r.get("service_name") or "",
+        )
+        by_key.setdefault(key, []).append(r)
+
+    out_by_id: dict = {}
+    async with aiosqlite.connect(config.DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        for (telegram_id, master_name, date, service_name), selected in by_key.items():
+            cur = await db.execute(
+                """SELECT * FROM bookings
+                   WHERE telegram_id = ? AND master_name = ? AND date = ?
+                     AND COALESCE(service_name, '') = COALESCE(?, '')
+                   ORDER BY time""",
+                (
+                    telegram_id or 0,
+                    master_name or "",
+                    date or "",
+                    service_name or "",
+                ),
+            )
+            all_rows = [dict(r) for r in await cur.fetchall()]
+            if not all_rows:
+                continue
+            selected_ids = {r.get("id") for r in selected}
+            for g in group_consecutive_slots(all_rows):
+                if selected_ids.intersection(g["ids"]):
+                    for r in all_rows:
+                        if r.get("id") in g["ids"]:
+                            out_by_id[r["id"]] = r
+    # выбранные строки на всякий случай (если цепочка не найдена)
+    for r in rows:
+        if r.get("id") is not None:
+            out_by_id.setdefault(r["id"], r)
+        else:
+            out_by_id.setdefault(id(r), r)
+    return list(out_by_id.values())
+
+
 async def save_booking_mapping(telegram_id: int, ext_id: int, master_name: str, service_name: str, date: str, time: str):
     """Сохранить маппинг Telegram ID → запись."""
     async with aiosqlite.connect(config.DB_PATH) as db:

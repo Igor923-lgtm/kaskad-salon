@@ -48,7 +48,7 @@ import http.cookiejar
 cj = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 try:
-    req = urllib.request.Request("http://localhost:8005/login", data=b"password=hairos2026", method="POST")
+    req = urllib.request.Request("http://localhost:8005/login", data=b"password=" + __import__("os").environ["QA_HAIROS_PW"].encode(), method="POST")
     opener.open(req, timeout=5)
     cookie = "crm_token=" + [c.value for c in cj if c.name == "crm_token"][0]
     test_auth("Dashboard (auth)", "http://localhost:8005/dashboard", cookie)
@@ -83,7 +83,7 @@ test("Icon 512", "http://localhost:8000/static/icon-512.png?v=2")
 cj2 = http.cookiejar.CookieJar()
 opener2 = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj2))
 try:
-    req = urllib.request.Request("http://localhost:8000/login", data=b"password=kaskad2026", method="POST")
+    req = urllib.request.Request("http://localhost:8000/login", data=b"password=" + __import__("os").environ["QA_KASKAD_PW"].encode(), method="POST")
     opener2.open(req, timeout=5)
     cookie = "crm_token=" + [c.value for c in cj2 if c.name == "crm_token"][0]
     test_auth("Dashboard (auth)", "http://localhost:8000/dashboard", cookie)

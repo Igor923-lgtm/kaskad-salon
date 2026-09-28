@@ -1,4 +1,5 @@
 """deploy_ubuntu.py — Деплой на Ubuntu сервер."""
+import deploy_secrets
 import paramiko
 import os
 import sys
@@ -6,7 +7,7 @@ import time
 
 NEW_SERVER = "92.246.128.94"
 USER = "root"
-PASS = "kf24mP2c7KQBViNi"
+PASS = deploy_secrets.PASS_KASKAD
 LOCAL_PROJECT = r"C:\Users\User\mimo\kaskad-multitenant"
 
 SERVICES = [

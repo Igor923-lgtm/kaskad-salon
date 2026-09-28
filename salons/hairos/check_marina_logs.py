@@ -1,8 +1,11 @@
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")))
+import deploy_secrets
 import paramiko
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('94.141.98.224', username='root', password='25ELkJTNxhwCC7vF', timeout=15)
+ssh.connect('94.141.98.224', username='root', password=deploy_secrets.PASS_HAIROS_OLD, timeout=15)
 
 # Check logs from ~7 hours ago (07:00-09:00 UTC on Sep 2)
 stdin, stdout, stderr = ssh.exec_command('journalctl -u hairos-polling --since "2026-09-02 07:00" --until "2026-09-02 09:00" --no-pager 2>&1')

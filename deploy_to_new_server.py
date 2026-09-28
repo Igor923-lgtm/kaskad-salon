@@ -3,6 +3,7 @@ deploy_to_new_server.py — Развёртывание всех проектов
 
 Сервер: 45.159.172.228
 """
+import deploy_secrets
 import paramiko
 import os
 import sys
@@ -11,7 +12,7 @@ import time
 # ── Конфигурация ──
 NEW_SERVER = "45.159.172.228"
 USER = "root"
-PASS = "DndhJ98X1U8LZg24"
+PASS = deploy_secrets.PASS_NEW
 
 # Локальный путь к проекту
 LOCAL_PROJECT = r"C:\Users\User\mimo\kaskad-multitenant"

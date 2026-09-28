@@ -13,6 +13,7 @@ restore_kaskad_history.py — Деплой исправленного кода +
 Использование:
     python restore_kaskad_history.py
 """
+import deploy_secrets
 
 import paramiko
 import os
@@ -23,7 +24,7 @@ from datetime import datetime
 # ── Конфигурация сервера ──
 SERVER_HOST = "94.141.98.224"
 SERVER_USER = "root"
-SERVER_PASS = "25ELkJTNxhwCC7vF"
+SERVER_PASS = deploy_secrets.PASS_HAIROS_OLD
 
 BOT_DIR = "/opt/telegram-bot"
 SERVICES = ["kaskad-polling", "kaskad-crm"]

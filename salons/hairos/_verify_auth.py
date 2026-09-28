@@ -4,7 +4,7 @@ cj = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 
 # Login
-login_data = b"password=hairos2026"
+login_data = b"password=" + __import__("os").environ["QA_HAIROS_PW"].encode()
 req = urllib.request.Request("http://localhost:8005/login", data=login_data, method="POST")
 try:
     r = opener.open(req, timeout=5)

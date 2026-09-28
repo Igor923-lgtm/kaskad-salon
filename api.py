@@ -2,6 +2,7 @@
 import asyncio
 import os
 import random
+import secrets
 import string
 import logging
 import hashlib
@@ -18,7 +19,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from PIL import Image, ImageOps
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 import config
 
@@ -215,7 +216,8 @@ async def page_login(request: Request, error: str = ""):
 async def do_login(request: Request):
     form = await request.form()
     password = form.get("password", "")
-    if password == config.CRM_PASSWORD:
+    # Fail-closed: без заданного CRM_PASSWORD вход закрыт (и пустой пароль ≠ вход).
+    if password and config.CRM_PASSWORD and password == config.CRM_PASSWORD:
         response = RedirectResponse(url="/dashboard", status_code=302)
         response.set_cookie(COOKIE_NAME, CRM_TOKEN, **_cookie_kwargs())
         # Подчистить старое общее имя, чтобы не конфликтовало на другом порту
@@ -269,6 +271,17 @@ class BookingCreate(BaseModel):
     service_ids: list[int] | None = None
     promo_code: str | None = None
 
+    @field_validator("client_name", "service_name", "price", "promo_code")
+    @classmethod
+    def _strip_html(cls, v: str) -> str:
+        # Защита от stored XSS: публичная бронь → innerHTML в CRM
+        return (v or "").replace("<", "").replace(">", "")[:160]
+
+    @field_validator("phone")
+    @classmethod
+    def _clean_phone(cls, v: str) -> str:
+        return (v or "").replace("<", "").replace(">", "").replace("`", "")[:32]
+
 class BookingUpdate(BaseModel):
     master_name: str | None = None
     date: str | None = None
@@ -309,11 +322,14 @@ class AuthVerify(BaseModel):
 
 _sms_codes = {}
 
+# Rate-limit на запрос OTP: 5/мин на телефон (анти-спам + анти-перебор)
+_otp_request_attempts = {}
+
 def _gen_code() -> str:
-    return "".join(random.choices(string.digits, k=4))
+    return "".join(secrets.choice(string.digits) for _ in range(4))
 
 def _gen_token() -> str:
-    return "".join(random.choices(string.ascii_letters + string.digits, k=32))
+    return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
 
 async def _init_sessions_table():
     async with aiosqlite.connect(config.DB_PATH) as db:
@@ -389,6 +405,24 @@ async def _get_session_or_crm(token: str | None, request: Request) -> dict | Non
     if _auth_cookie_ok(request):
         return {"master_id": 0, "master_name": "CRM Admin", "telegram_id": 0, "role": "super_admin"}
     return None
+
+async def _require_admin(request: Request, super_only: bool = False) -> dict:
+    """403, если не админ. CRM-кука = super_admin; master-токен — по роли.
+
+    super_only=True → только super_admin (для эндпоинтов, отдающих сырые токены).
+    """
+    token = request.query_params.get("token")
+    session = await _get_session_or_crm(token, request)
+    if not session:
+        raise HTTPException(403, "Недостаточно прав")
+    role = session.get("role", "master_edit")
+    if role == "super_admin":
+        return session
+    if super_only:
+        raise HTTPException(403, "Недостаточно прав")
+    if role in ("director", "admin"):
+        return session
+    raise HTTPException(403, "Недостаточно прав")
 
 async def _notify_admin(booking, booking_id: int):
     """Отправить уведомление админу в Telegram о новой записи."""
@@ -747,6 +781,13 @@ async def auth_request(req: AuthRequest):
     if not phone.startswith("+"):
         phone = "+" + phone
 
+    # Rate-limit: 5 запросов кода в минуту на телефон (анти-спам в Telegram)
+    _now = datetime.now().timestamp()
+    _otp_request_attempts[phone] = [t for t in _otp_request_attempts.get(phone, []) if _now - t < 60]
+    if len(_otp_request_attempts[phone]) >= 5:
+        raise HTTPException(429, "Слишком много попыток. Подождите минуту.")
+    _otp_request_attempts[phone].append(_now)
+
     log.info(f"AUTH: phone={phone}")
 
     # Суперадмин — принудительно
@@ -793,7 +834,7 @@ async def auth_request(req: AuthRequest):
             cur = await db.execute("SELECT telegram_id FROM clients WHERE phone IN (?, ?)", (phone, phone_no_plus))
             clients = await cur.fetchall()
             if not clients:
-                raise HTTPException(404, "Мастер с таким телефоном не найден")
+                raise HTTPException(400, "Проверьте номер: код не отправлен.")
             
             # Проверяем, не админ ли это (среди всех клиентов с этим телефоном)
             admin_tg_id = None
@@ -812,7 +853,7 @@ async def auth_request(req: AuthRequest):
                 cur = await db.execute("SELECT * FROM masters WHERE telegram_id = ? AND is_active = 1", (tg_id,))
                 master = await cur.fetchone()
                 if not master:
-                    raise HTTPException(404, "Мастер с таким телефоном не найден")
+                    raise HTTPException(400, "Проверьте номер: код не отправлен.")
                 master = dict(master)
 
         # Автоматически привязываем telegram_id мастера если ещё не привязан
@@ -826,7 +867,7 @@ async def auth_request(req: AuthRequest):
 
     # Отправляем код в Telegram — сначала проверяем tg_id
     if not tg_id:
-        raise HTTPException(400, "Мастер не привязан к Telegram. Обратитесь к администратору.")
+        raise HTTPException(400, "Проверьте номер: код не отправлен.")
 
     code = _gen_code()
     role = master.get("role", "master_edit")
@@ -870,14 +911,23 @@ async def auth_verify(req: AuthVerify):
     if not phone.startswith("+"):
         phone = "+" + phone
 
+    # Единый текст ошибки — без энумерации (телефон не найден / нет кода / неверный код)
+    _otp_err = "Проверьте номер или код."
+
     stored = _sms_codes.get(phone)
     if not stored:
-        raise HTTPException(400, "Код не запрашивался")
+        raise HTTPException(400, _otp_err)
     if datetime.now() > stored["expires"]:
         del _sms_codes[phone]
-        raise HTTPException(400, "Код истёк")
-    if stored["code"] != req.code:
-        raise HTTPException(400, "Неверный код")
+        raise HTTPException(400, _otp_err)
+
+    # Лимит попыток: после 5 неверных код сгорает (анти-перебор 4-значного кода)
+    stored["attempts"] = stored.get("attempts", 0) + 1
+    if stored["attempts"] > 5:
+        del _sms_codes[phone]
+        raise HTTPException(400, _otp_err)
+    if not hmac.compare_digest(str(stored["code"]), str(req.code)):
+        raise HTTPException(400, _otp_err)
 
     token = _gen_token()
     role = stored.get("role", "master_edit")
@@ -2423,8 +2473,16 @@ class BroadcastRequest(BaseModel):
     client_ids: list = []  # если пусто — по сегменту
 
 @app.post("/api/broadcast")
-async def broadcast_message(req: BroadcastRequest):
+async def broadcast_message(req: BroadcastRequest, request: Request):
     """Отправить сообщение клиентам через Telegram."""
+    # Доступ: CRM-кука / director / super_admin / гранулярное право broadcast
+    session = await _get_session_or_crm(request.query_params.get("token"), request)
+    if not session:
+        raise HTTPException(403, "Недостаточно прав")
+    if session.get("role") not in ("super_admin", "director", "admin"):
+        perms = await _get_permissions(session.get("master_id") or 0)
+        if not perms.get("broadcast"):
+            raise HTTPException(403, "Недостаточно прав")
     if not req.text.strip():
         raise HTTPException(400, "Текст сообщения обязателен")
 
@@ -2776,6 +2834,7 @@ async def get_settings():
 
 @app.put("/api/settings")
 async def update_settings(request: Request):
+    await _require_admin(request)
     import db as db_module
     body = await request.json()
     for key, value in body.items():
@@ -2800,6 +2859,7 @@ async def update_settings(request: Request):
 @app.put("/api/settings/salon-name")
 async def update_salon_name(request: Request):
     """Обновить название салона."""
+    await _require_admin(request)
     import db as db_module
     body = await request.json()
     name = body.get("name", "").strip()
@@ -2844,6 +2904,7 @@ async def upload_logo(file: UploadFile = File(...)):
 @app.put("/api/settings/contact")
 async def update_contact(request: Request):
     """Обновить контактные данные салона."""
+    await _require_admin(request)
     import db as db_module
     import config as cfg
     body = await request.json()
@@ -2868,6 +2929,7 @@ async def update_contact(request: Request):
 @app.put("/api/settings/hours")
 async def update_hours(request: Request):
     """Обновить часы работы салона."""
+    await _require_admin(request)
     import db as db_module
     import config as cfg
     body = await request.json()
@@ -3004,6 +3066,7 @@ async def audit_list(limit: int = Query(100)):
 @app.put("/api/settings/buffer")
 async def update_buffer_setting(request: Request):
     """Салон-вайдный буфер после каждой записи (минуты, кратно 15, 0 = выкл)."""
+    await _require_admin(request)
     import db as db_module
     import config as cfg
     body = await request.json()
@@ -3095,7 +3158,8 @@ async def delete_works_photo(path: str):
     """Удалить фото работ (с защитой от path traversal)."""
     base = (BASE_DIR / "works_photos").resolve()
     filepath = (BASE_DIR / "works_photos" / path).resolve()
-    if not str(filepath).startswith(str(base)) or not filepath.exists() or not filepath.is_file():
+    # os.sep в конце — иначе works_photos_evil/ проходит startswith-проверку
+    if not str(filepath).startswith(str(base) + os.sep) or not filepath.exists() or not filepath.is_file():
         raise HTTPException(404, "Файл не найден")
     filepath.unlink()
     return {"status": "ok"}
@@ -3110,6 +3174,7 @@ async def get_works_categories_api():
 
 @app.put("/api/settings/works-categories")
 async def set_works_categories_api(request: Request):
+    await _require_admin(request)
     import db as db_module
     body = await request.json()
     items = body.get("categories") or []
@@ -3319,6 +3384,7 @@ async def api_bot_notifications_put(request: Request):
 
 @app.put("/api/bot/admin-ids")
 async def api_bot_admin_ids(request: Request):
+    await _require_admin(request)
     import db as db_module
     body = await request.json()
     raw = str(body.get("admin_ids", "")).strip()
@@ -3357,7 +3423,10 @@ async def api_master_login_toggle(master_id: int, request: Request):
 
 
 @app.get("/api/masters/sessions")
-async def api_masters_sessions():
+async def api_masters_sessions(request: Request):
+    # Сырые токены видит только суперадмин (CRM-кука или роль super_admin) —
+    # иначе любой мастер токеном эскалируется до админа
+    await _require_admin(request, super_only=True)
     await _init_sessions_table()
     async with aiosqlite.connect(config.DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -3369,7 +3438,8 @@ async def api_masters_sessions():
 
 
 @app.delete("/api/masters/sessions/{token}")
-async def api_masters_session_revoke(token: str):
+async def api_masters_session_revoke(token: str, request: Request):
+    await _require_admin(request, super_only=True)
     await _init_sessions_table()
     async with aiosqlite.connect(config.DB_PATH) as db:
         cur = await db.execute("DELETE FROM master_sessions WHERE token = ?", (token,))
@@ -3380,7 +3450,8 @@ async def api_masters_session_revoke(token: str):
 
 
 @app.post("/api/masters/sessions/revoke-all")
-async def api_masters_sessions_revoke_all():
+async def api_masters_sessions_revoke_all(request: Request):
+    await _require_admin(request, super_only=True)
     await _init_sessions_table()
     async with aiosqlite.connect(config.DB_PATH) as db:
         await db.execute("DELETE FROM master_sessions")

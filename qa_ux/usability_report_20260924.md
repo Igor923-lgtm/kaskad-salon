@@ -7,7 +7,7 @@
 ## Method
 
 1. Code + template audit vs prior report (titles, prompt/alert, modals, empty states).
-2. HTTP login E2E on server: kaskad2026 / hairos2026 → dashboard 200.
+2. HTTP login E2E on server: <redacted> / <redacted> → dashboard 200.
 3. **Playwright browser walk (Python, headless Chromium):** desktop 1280 + mobile 390, both salons — full page set with screenshots.
 
 ## Browser walk results (2026-09-24)

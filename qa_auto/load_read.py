@@ -23,7 +23,7 @@ from pathlib import Path
 
 HOST = os.environ.get("QA_HOST", "92.246.128.94")
 PORT = int(os.environ.get("QA_LOAD_PORT", "8000"))
-PW = os.environ.get("QA_KASKAD_PW", "kaskad2026")
+PW = os.environ["QA_KASKAD_PW"]
 COOKIE = os.environ.get("QA_LOAD_COOKIE", "crm_token_kaskad")
 
 # cheap paths for primary p95; HTML mixed separately

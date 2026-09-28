@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>{{ "Арендаторы" if org_type == "coworking" else "Клиенты" }} — {{ salon_name }}</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
 </head>
 <body>
 
@@ -14,7 +14,7 @@
 <div class="main-content">
 
 <div class="header">
-  <h1>{{ "👥 Арендаторы" if org_type == "coworking" else "👥 Клиенты" }}</h1>
+  <h1>{% if org_type == "coworking" %}Арендаторы{% else %}Клиенты{% endif %}</h1>
   <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
     <input type="text" id="search" placeholder="Поиск..." style="min-height:36px;padding:0 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;width:200px">
   </div>
@@ -31,8 +31,8 @@
     <button class="btn btn-outline btn-sm filter-btn" data-filter="lead" onclick="setFilter('lead')">Лиды</button>
     <button class="btn btn-outline btn-sm filter-btn" data-filter="client" onclick="setFilter('client')">Клиенты</button>
     <span id="selectedCount" style="margin-left:8px;font-size:13px;color:var(--primary);display:none">Выбрано: 0</span>
-    <button class="btn btn-outline btn-sm" onclick="importClientsCsv()">📥 CSV</button>
-    <button class="btn btn-outline btn-sm" onclick="openBroadcast()" style="margin-left:auto">📨 Рассылка</button>
+    <button class="btn btn-outline btn-sm" onclick="importClientsCsv()"><i class="fa-solid fa-file-csv" style="margin-right:6px"></i>CSV</button>
+    <button class="btn btn-outline btn-sm" onclick="openBroadcast()" style="margin-left:auto"><i class="fa-solid fa-paper-plane" style="margin-right:6px"></i>Рассылка</button>
   </div>
 
   <!-- Модалка CSV import -->
@@ -91,7 +91,7 @@
 <div class="modal-overlay" id="broadcastModal" style="display:none" onclick="if(event.target===this)closeBroadcast()">
   <div class="modal" style="max-width:600px;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-header">
-      <h3>📨 Рассылка клиентам</h3>
+      <h3><i class="fa-solid fa-paper-plane" style="color:#8E8E93;margin-right:6px"></i>Рассылка клиентам</h3>
       <button class="btn btn-outline btn-icon btn-sm" onclick="closeBroadcast()">✕</button>
     </div>
     <div class="modal-body" style="overflow-y:auto;flex:1">
@@ -131,7 +131,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeBroadcast()">Отмена</button>
-      <button class="btn btn-primary" id="bcSendBtn" onclick="sendBroadcast()">📨 Отправить выбранным</button>
+      <button class="btn btn-primary" id="bcSendBtn" onclick="sendBroadcast()"><i class="fa-solid fa-paper-plane" style="margin-right:6px"></i>Отправить выбранным</button>
     </div>
   </div>
 </div>
@@ -353,7 +353,7 @@ async function showDetail(tgId) {
     } else {
       html += `<table class="crm-table" style="font-size:13px"><thead><tr><th>Дата</th><th>Время</th><th>Мастер</th><th>Услуга</th><th>Статус</th></tr></thead><tbody>`;
       history.forEach(b => {
-        const st = b.confirmed ? '<span class="badge badge-confirmed">✓</span>' : '<span class="badge badge-new">⏳</span>';
+        const st = b.confirmed ? '<span class="badge badge-confirmed"><i class="fa-solid fa-check"></i></span>' : '<span class="badge badge-new"><i class="fa-solid fa-clock"></i></span>';
         html += `<tr><td>${b.date||'—'}</td><td>${b.time||'—'}</td><td>${esc(b.master_name||'—')}</td><td>${esc(b.service_name||'—')}</td><td>${st}</td></tr>`;
       });
       html += '</tbody></table>';
@@ -368,7 +368,7 @@ function closeDetail() {
   document.getElementById('detailModal').style.display = 'none';
 }
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 
 document.getElementById('search').addEventListener('input', (e) => {
   clearTimeout(searchTimeout);
@@ -490,9 +490,9 @@ async function sendBroadcast() {
     });
     const data = await resp.json();
     if (resp.ok) {
-      document.getElementById('bcResult').innerHTML = `<div style="color:var(--primary)">✅ Отправлено: ${data.sent}, ошибок: ${data.failed}</div>`;
+      document.getElementById('bcResult').innerHTML = `<div style="color:var(--primary)">Отправлено: ${data.sent}, ошибок: ${data.failed}</div>`;
     } else {
-      document.getElementById('bcResult').innerHTML = `<div style="color:var(--danger)">❌ ${data.detail || 'Ошибка'}</div>`;
+      document.getElementById('bcResult').innerHTML = `<div style="color:var(--danger)">${data.detail || 'Ошибка'}</div>`;
     }
   } catch(e) {
     document.getElementById('bcResult').innerHTML = `<div style="color:var(--danger)">❌ Ошибка сети</div>`;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Дашборд — {{ salon_name }}</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   @media (max-width: 768px) {
@@ -33,37 +33,37 @@
 
   <!-- Быстрые действия -->
   <div class="card" style="margin-top:20px;padding:16px">
-    <h3 style="margin:0 0 12px">⚡ Быстрые действия</h3>
+    <h3 style="margin:0 0 12px"><i class="fa-solid fa-bolt" style="color:#8E8E93;margin-right:6px"></i>Быстрые действия</h3>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       {% if org_type == "coworking" %}
-      <a href="/schedule" class="btn btn-primary">📅 Занятость</a>
-      <a href="/masters" class="btn btn-outline">🪑 Пространства</a>
-      <a href="/clients" class="btn btn-outline">👥 Арендаторы</a>
+      <a href="/schedule" class="btn btn-primary"><i class="fa-solid fa-calendar-days" style="margin-right:6px"></i>Занятость</a>
+      <a href="/masters" class="btn btn-outline"><i class="fa-solid fa-chair" style="margin-right:6px"></i>Пространства</a>
+      <a href="/clients" class="btn btn-outline"><i class="fa-solid fa-users" style="margin-right:6px"></i>Арендаторы</a>
       {% else %}
-      <a href="/schedule" class="btn btn-primary">📅 Шахматка</a>
-      <a href="/masters" class="btn btn-outline">👩‍🎨 Мастера</a>
-      <a href="/clients" class="btn btn-outline">👥 Клиенты</a>
+      <a href="/schedule" class="btn btn-primary"><i class="fa-solid fa-calendar-days" style="margin-right:6px"></i>Шахматка</a>
+      <a href="/masters" class="btn btn-outline"><i class="fa-solid fa-user-group" style="margin-right:6px"></i>Мастера</a>
+      <a href="/clients" class="btn btn-outline"><i class="fa-solid fa-users" style="margin-right:6px"></i>Клиенты</a>
       {% endif %}
-      <a href="/finance" class="btn btn-outline">💰 Финансы</a>
-      <a href="/analytics" class="btn btn-outline">📈 Аналитика</a>
+      <a href="/finance" class="btn btn-outline"><i class="fa-solid fa-wallet" style="margin-right:6px"></i>Финансы</a>
+      <a href="/analytics" class="btn btn-outline"><i class="fa-solid fa-chart-line" style="margin-right:6px"></i>Аналитика</a>
     </div>
   </div>
 
   <!-- Графики -->
   <div class="charts-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
     <div class="card" style="padding:10px;min-width:0;overflow:hidden">
-      <h3 style="margin:0 0 8px;font-size:13px">📊 Записи за неделю</h3>
+      <h3 style="margin:0 0 8px;font-size:13px"><i class="fa-solid fa-chart-column" style="color:#8E8E93;margin-right:4px"></i>Записи за неделю</h3>
       <div style="height:120px;min-width:0"><canvas id="weekChart"></canvas></div>
     </div>
     <div class="card" style="padding:10px;min-width:0;overflow:hidden">
-      <h3 style="margin:0 0 8px;font-size:13px">🏆 Топ услуги</h3>
+      <h3 style="margin:0 0 8px;font-size:13px"><i class="fa-solid fa-trophy" style="color:#8E8E93;margin-right:4px"></i>Топ услуги</h3>
       <div style="height:120px;min-width:0"><canvas id="servicesChart"></canvas></div>
     </div>
   </div>
 
   <!-- Последние записи -->
   <div class="card" style="margin-top:20px;padding:16px;overflow-x:auto">
-    <h3 style="margin:0 0 12px">📋 Последние записи</h3>
+    <h3 style="margin:0 0 12px"><i class="fa-solid fa-clipboard-list" style="color:#8E8E93;margin-right:4px"></i>Последние записи</h3>
     <table class="crm-table" id="recentBookings">
       <thead>
         <tr>
@@ -92,6 +92,7 @@
 </div><!-- /main-content -->
 
 <script>
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 // Устанавливаем дату
 const today = new Date();
 document.getElementById('todayDate').textContent = today.toLocaleDateString('ru-RU', {
@@ -154,7 +155,7 @@ async function loadDashboard() {
         datasets: [{
           label: 'Записи',
           data: weekData,
-          backgroundColor: '#6C63FF',
+          backgroundColor: '#007AFF',
           borderRadius: 6
         }]
       },
@@ -172,7 +173,7 @@ async function loadDashboard() {
     if (clientsStats.top_services && clientsStats.top_services.length > 0) {
       const labels = clientsStats.top_services.map(s => s.name.substring(0, 20));
       const data = clientsStats.top_services.map(s => s.count);
-      const colors = ['#6C63FF', '#4ECDC4', '#FFD700', '#FF6B6B', '#a855f7'];
+      const colors = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#007AFF'];
       new Chart(document.getElementById('servicesChart'), {
         type: 'doughnut',
         data: {
@@ -201,9 +202,9 @@ async function loadDashboard() {
       <tr>
         <td>${b.date || '—'}</td>
         <td>${b.time || '—'}</td>
-        <td>${b.client_name || '—'}</td>
-        <td>${b.master_name || '—'}</td>
-        <td>${b.service_name || '—'}</td>
+        <td>${esc(b.client_name) || '—'}</td>
+        <td>${esc(b.master_name) || '—'}</td>
+        <td>${esc(b.service_name) || '—'}</td>
         <td>${bookingStatus(b)}</td>
       </tr>
     `).join('');
@@ -220,7 +221,7 @@ async function loadDashboard() {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${lost.slice(0, 5).map(c => `
             <div style="background:var(--bg);padding:8px 12px;border-radius:8px;font-size:12px">
-              ${c.name || '—'} | ${c.phone || '—'}
+              ${esc(c.name) || '—'} | ${esc(c.phone) || '—'}
             </div>
           `).join('')}
         </div>

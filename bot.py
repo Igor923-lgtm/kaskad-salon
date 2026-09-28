@@ -1,6 +1,7 @@
 """Telegram-бот салона красоты."""
 import asyncio
 import calendar
+import json
 import logging
 import os
 from datetime import datetime, timedelta
@@ -15,6 +16,7 @@ from telegram.ext import (
     ConversationHandler, ContextTypes, filters,
 )
 from telegram.constants import ParseMode
+from telegram.error import BadRequest
 
 import config
 import db
@@ -23,6 +25,14 @@ import aiosqlite
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
+
+# Bot API хранит allowed_updates между вызовами getUpdates ("If not specified,
+# the previous setting will be used") — без явного параметра сторонний вызов
+# может навсегда отключить callback_query, и кнопки перестают доходить.
+ALLOWED_UPDATES = [
+    "message", "edited_message", "callback_query",
+    "channel_post", "edited_channel_post", "my_chat_member", "chat_member",
+]
 
 # ══════════════════════════════════════════════════════════
 #  Состояния ConversationHandler
@@ -486,6 +496,10 @@ async def cb_works_category(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     folder = query.data.replace("works_cat_", "")
+    # Защита от path traversal: имя категории — только [A-Za-z0-9_-], без ../
+    if not folder or not all(ch.isalnum() or ch in "_-" for ch in folder) or len(folder) > 64:
+        await query.edit_message_text("Фото скоро появятся.", reply_markup=back_btn())
+        return MAIN_MENU
     cat_dir = os.path.join(WORKS_DIR, folder)
     if not os.path.isdir(cat_dir):
         await query.edit_message_text("Фото скоро появятся.", reply_markup=back_btn())
@@ -782,12 +796,12 @@ async def book_multi_toggle(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def book_multi_done(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Подтвердить мульти-выбор → мастера / календарь."""
     query = update.callback_query
-    await query.answer()
     booking = ctx.user_data.setdefault("booking", {})
     multi = booking.get("multi_services") or []
     if not multi:
         await query.answer("Отметьте хотя бы одну услугу", show_alert=True)
         return BOOK_SELECT_SERVICE
+    await query.answer()
 
     booking["service_name"] = " + ".join(m["name"] for m in multi)
     booking["service_price"] = " + ".join(str(m["price"]) for m in multi)
@@ -1277,12 +1291,12 @@ async def book_commit_nop(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def book_commit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Ков.: зафиксировать выбранные слоты → confirm."""
     query = update.callback_query
-    await query.answer()
     booking = ctx.user_data.setdefault("booking", {})
     selected: set = set(booking.get("selected_slots") or set())
     if not selected:
         await query.answer("Сначала отметьте время", show_alert=True)
         return BOOK_SELECT_DATE
+    await query.answer()
 
     slots = sorted(selected)
     # непрерывность с шагом 15 мин
@@ -1803,7 +1817,6 @@ async def cb_cal_ignore(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def cb_coworking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     """Кнопка 'Коворкинг' — только в режиме coworking."""
     query = update.callback_query
-    await query.answer()
     if not await _is_coworking_org():
         await query.answer(
             "Доступно только в режиме «Ковopкинг» (Настройки → Режим работы)",
@@ -1819,6 +1832,7 @@ async def cb_coworking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     else:
         await query.answer("Эта функция доступна только для мастеров", show_alert=True)
         return MAIN_MENU
+    await query.answer()
 
     ctx.user_data["coworking"] = {"master_name": master_name}
     now = datetime.now()
@@ -3362,7 +3376,9 @@ async def sync_missed_messages(context: ContextTypes.DEFAULT_TYPE):
         sent_count = 0
 
         # 1. Напоминания за 24 часа (для записей завтра, которые ещё не напоминали)
-        bookings_24h = db.group_consecutive_slots(await db.get_upcoming_bookings(hours_ahead=24))
+        bookings_24h = db.group_consecutive_slots(
+            await db.expand_booking_ranges(await db.get_upcoming_bookings(hours_ahead=24))
+        )
         for b in bookings_24h:
             tl = b["start_time"] if b["start_time"] == b["end_time"] else f'{b["start_time"]} – {b["end_time"]}'
             text = (
@@ -3388,7 +3404,9 @@ async def sync_missed_messages(context: ContextTypes.DEFAULT_TYPE):
                 log.warning(f"SYNC: ошибка 24h {b['telegram_id']}: {e}")
 
         # 2. Напоминания за 2 часа
-        bookings_2h = db.group_consecutive_slots(await db.get_upcoming_bookings_2h())
+        bookings_2h = db.group_consecutive_slots(
+            await db.expand_booking_ranges(await db.get_upcoming_bookings_2h())
+        )
         for b in bookings_2h:
             tl = b["start_time"] if b["start_time"] == b["end_time"] else f'{b["start_time"]} – {b["end_time"]}'
             text = (
@@ -3461,6 +3479,35 @@ async def debug_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def error_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     log.error(f"Unhandled error: {ctx.error}", exc_info=ctx.error)
+
+
+async def unhandled_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Fallback ConversationHandler: callback в активном состоянии без handler'а.
+
+    Гасит спиннер и подсказывает пользователю; лог — диагностический след
+    несматченных кнопок.
+    """
+    query = update.callback_query
+    log.warning(f"UNHANDLED callback: user={query.from_user.id} data={query.data}")
+    try:
+        await query.answer(
+            "Экран устарел. Нажмите /start или выберите пункт меню.",
+            show_alert=True,
+        )
+    except BadRequest:
+        pass
+
+
+async def silent_answer_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Страховка вне ConversationHandler (состояние диалога уже неактивно).
+
+    Только гасит спиннер: без alert и без лога, чтобы не дублировать реакцию
+    на уже обработанные callback'и.
+    """
+    try:
+        await update.callback_query.answer()
+    except BadRequest:
+        pass
 
 
 _last_birthday_run = {"date": ""}
@@ -3774,6 +3821,25 @@ def build_application():
             CommandHandler("debug_db", cmd_debug_db),
             CommandHandler("sync_price", cmd_sync_price),
             CommandHandler("settings", cmd_settings),
+            # Навигационные inline-кнопки как entry-точки: при allow_reentry=True
+            # entry-точки проверяются ДО handlers текущего состояния и при
+            # state=None (после conversation_timeout), поэтому меню работает
+            # из любого экрана и без /start.
+            CallbackQueryHandler(cb_services, pattern="^menu_services$"),
+            CallbackQueryHandler(cb_masters, pattern="^menu_masters$"),
+            CallbackQueryHandler(cb_works, pattern="^menu_works$"),
+            CallbackQueryHandler(cb_my_bookings, pattern="^menu_my_bookings$"),
+            CallbackQueryHandler(cb_edit_booking, pattern="^menu_edit_booking$"),
+            CallbackQueryHandler(cb_history, pattern="^menu_history$"),
+            CallbackQueryHandler(cb_discount, pattern="^menu_discount$"),
+            CallbackQueryHandler(cb_birthday, pattern="^menu_birthday$"),
+            CallbackQueryHandler(cb_location, pattern="^menu_location$"),
+            CallbackQueryHandler(cb_waitlist, pattern="^menu_waitlist$"),
+            CallbackQueryHandler(cb_book, pattern="^menu_book$"),
+            CallbackQueryHandler(cb_contact, pattern="^menu_contact$"),
+            CallbackQueryHandler(cb_coworking, pattern="^coworking$"),
+            CallbackQueryHandler(cb_back_main, pattern="^back_main$"),
+            CallbackQueryHandler(cb_consultation, pattern="^consultation$"),
         ],
         states={
             MAIN_MENU: [
@@ -3879,6 +3945,7 @@ def build_application():
             COWORKING_SELECT_DATE: [
                 CallbackQueryHandler(cow_cal_day, pattern="^cow_cal_day_"),
                 CallbackQueryHandler(cow_cal_month, pattern="^cow_cal_month_"),
+                CallbackQueryHandler(cow_cal_back, pattern="^cow_cal_back_"),
                 CallbackQueryHandler(cb_back_main, pattern="^back_main$"),
             ],
             COWORKING_SELECT_START: [
@@ -4000,12 +4067,16 @@ def build_application():
         fallbacks=[
             CommandHandler("cancel", cmd_cancel),
             CommandHandler("start", cmd_start),
+            # несматченный callback в активном состоянии → alert вместо спиннера
+            CallbackQueryHandler(unhandled_callback, pattern=".*"),
         ],
         allow_reentry=True,
         conversation_timeout=600,
     )
     app.add_handler(conv, group=0)
-    app.add_handler(CallbackQueryHandler(cb_consultation, pattern="^consultation$"), group=1)
+    # Страховка, когда диалог уже неактивен (state=None): только гасим спиннер,
+    # без alert/лога — обработанные callback'и сюда не попадают в лог.
+    app.add_handler(CallbackQueryHandler(silent_answer_callback, pattern=".*"), group=1)
 
     return app
 
@@ -4056,7 +4127,9 @@ async def polling_loop(app):
 
                 # 1. Напоминание за lead_hours (2h)
                 if db.is_notify_enabled(ncfg, "remind_2h"):
-                    bookings_2h = db.group_consecutive_slots(await db.get_upcoming_bookings_2h())
+                    bookings_2h = db.group_consecutive_slots(
+                        await db.expand_booking_ranges(await db.get_upcoming_bookings_2h())
+                    )
                     for b in bookings_2h:
                         tl = b["start_time"] if b["start_time"] == b["end_time"] else f'{b["start_time"]} – {b["end_time"]}'
                         tmpl = (ncfg.get("remind_2h") or {}).get("template") or ""
@@ -4078,7 +4151,9 @@ async def polling_loop(app):
 
                 # 2. Напоминание за lead_hours (24h)
                 if db.is_notify_enabled(ncfg, "remind_24h"):
-                    bookings_24h = db.group_consecutive_slots(await db.get_upcoming_bookings(hours_ahead=24))
+                    bookings_24h = db.group_consecutive_slots(
+                        await db.expand_booking_ranges(await db.get_upcoming_bookings(hours_ahead=24))
+                    )
                     for b in bookings_24h:
                         tl = b["start_time"] if b["start_time"] == b["end_time"] else f'{b["start_time"]} – {b["end_time"]}'
                         tmpl = (ncfg.get("remind_24h") or {}).get("template") or ""
@@ -4185,7 +4260,11 @@ async def polling_loop(app):
     while True:
         try:
             url = f"https://api.telegram.org/bot{config.BOT_TOKEN}/getUpdates"
-            params = {"offset": offset, "timeout": 30}
+            params = {
+                "offset": offset,
+                "timeout": 30,
+                "allowed_updates": json.dumps(ALLOWED_UPDATES),
+            }
             log.info(f"POLLING: getUpdates offset={offset}")
             resp = await http_client.get(url, params=params)
             data = resp.json()

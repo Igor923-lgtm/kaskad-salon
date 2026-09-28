@@ -7,15 +7,15 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>{{ "Занятость" if org_type == "coworking" else "Шахматка" }} — {{ salon_name }}</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
   <style>
     .modal { border-radius: 20px !important; overflow-x: hidden !important; }
     .modal-body { overflow-x: hidden !important; }
     .form-group input, .form-group select { width: 100%; box-sizing: border-box; }
     /* Выходной: отдельный цвет ячеек + подпись */
     .schedule-table .time-col.dayoff {
-      background: #eceff1 !important;
-      color: #90a4ae !important;
+      background: #F2F2F7 !important;
+      color: #8E8E93 !important;
       text-align: center;
       font-size: 11px;
       font-style: italic;
@@ -159,12 +159,13 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeScheduleModal()">Отмена</button>
-      <button class="btn btn-primary" onclick="saveSchedModal()">💾 Сохранить</button>
+      <button class="btn btn-primary" onclick="saveSchedModal()"><i class="fa-solid fa-check" style="margin-right:6px"></i>Сохранить</button>
     </div>
   </div>
 </div>
 
 <script>
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 // Kill Service Worker cache — гарантия свежих данных
 if ('caches' in window) { caches.keys().then(function(keys) { keys.forEach(function(k) { caches.delete(k); }); }); }
 if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(regs) { regs.forEach(function(r) { r.unregister(); }); }); }
@@ -216,8 +217,8 @@ let dayOffMap = {}; // master_name → true (выходной на текущу�
 let selectedMaster = null; // null = все
 
 const COLORS = {
-  0: '#FFF8E1', // новая (нет confirmed)
-  1: '#E8F5E9', // подтверждена
+  0: 'rgba(255,149,0,0.14)', // новая (нет confirmed)
+  1: 'rgba(52,199,89,0.15)', // подтверждена
 };
 
 function fmt(d) {
@@ -365,7 +366,7 @@ function renderTable() {
         const timeLabel = n > 1 ? `${booking.time}–${endT}` : booking.time;
         bodyHtml += `<td class="time-col booked ${statusClass}" onclick="showDetail(${booking.id})">
           <div class="booking-info">
-            <div class="client">${booking.client_name || '—'}</div>
+            <div class="client">${esc(booking.client_name) || '—'}</div>
             <div class="service">${timeLabel} ${booking.service_name || ''}</div>
           </div>
         </td>`;
@@ -484,7 +485,7 @@ function showSavedToast() {
     el = document.createElement('div');
     el.id = 'pageSaved';
     el.className = 'saved';
-    el.textContent = '✓ Запись создана';
+    el.textContent = 'Запись создана';
     document.body.appendChild(el);
   }
   el.style.display = 'block';
@@ -531,14 +532,14 @@ function showDetail(id) {
     </div>
     <div class="form-group">
       <label>Клиент</label>
-      <input id="editClient" value="${b.client_name || ''}" placeholder="Имя клиента">
+      <input id="editClient" value="${esc(b.client_name) || ''}" placeholder="Имя клиента">
     </div>
   `;
 
   const footer = document.getElementById('detailFooter');
-  let btns = `<button class="btn btn-primary btn-sm" onclick="saveBooking()">💾 Сохранить</button>`;
-  if (!b.confirmed) btns += ` <button class="btn btn-info btn-sm" onclick="confirmBooking(${b.id})">✅ Подтвердить</button>`;
-  btns += ` <button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">❌ Отменить</button>`;
+  let btns = `<button class="btn btn-primary btn-sm" onclick="saveBooking()"><i class="fa-solid fa-check" style="margin-right:6px"></i>Сохранить</button>`;
+  if (!b.confirmed) btns += ` <button class="btn btn-info btn-sm" onclick="confirmBooking(${b.id})"><i class="fa-solid fa-check" style="margin-right:4px"></i>Подтвердить</button>`;
+  btns += ` <button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})"><i class="fa-solid fa-xmark" style="margin-right:4px"></i>Отменить</button>`;
   footer.innerHTML = btns;
 
   document.getElementById('detailModal').style.display = 'flex';
@@ -667,8 +668,8 @@ function renderSchedSlots(selectedSlots) {
 
   grid.innerHTML = allSlots.map(t => {
     const checked = selectedSlots.includes(t);
-    return `<label style="display:flex;align-items:center;gap:3px;padding:5px 9px;border:2px solid ${checked ? 'var(--primary)' : 'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px;font-weight:${checked ? '600' : '400'};background:${checked ? '#E8F5E9' : 'var(--card)'}">
-      <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} style="display:none" onchange="this.parentElement.style.borderColor=this.checked?'var(--primary)':'var(--border)';this.parentElement.style.background=this.checked?'#E8F5E9':'var(--card)';this.parentElement.style.fontWeight=this.checked?'600':'400'">
+    return `<label style="display:flex;align-items:center;gap:3px;padding:5px 9px;border:2px solid ${checked ? 'var(--primary)' : 'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px;font-weight:${checked ? '600' : '400'};background:${checked ? 'rgba(52,199,89,0.15)' : 'var(--card)'}">
+      <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} style="display:none" onchange="this.parentElement.style.borderColor=this.checked?'var(--primary)':'var(--border)';this.parentElement.style.background=this.checked?'rgba(52,199,89,0.15)':'var(--card)';this.parentElement.style.fontWeight=this.checked?'600':'400'">
       ${t}
     </label>`;
   }).join('');
@@ -678,7 +679,7 @@ function selectSchedAll() {
   document.querySelectorAll('#schedSlotsGrid input[type="checkbox"]').forEach(cb => {
     cb.checked = true;
     cb.parentElement.style.borderColor = 'var(--primary)';
-    cb.parentElement.style.background = '#E8F5E9';
+    cb.parentElement.style.background = 'rgba(52,199,89,0.15)';
     cb.parentElement.style.fontWeight = '600';
   });
 }

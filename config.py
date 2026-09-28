@@ -16,11 +16,14 @@ ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.
 DB_PATH = os.getenv("DB_PATH", "bot_cache.db")
 
 # ── Суперадмин ─────────────────────────────────────────────
-SUPERADMIN_PHONE = "+375298592000"
-SUPERADMIN_TG_ID = 294308582
+# Переопределяется в salons/<id>/.env; дефолт сохранён для совместимости
+SUPERADMIN_PHONE = os.getenv("SUPERADMIN_PHONE", "+375298592000")
+SUPERADMIN_TG_ID = int(os.getenv("SUPERADMIN_TG_ID", "294308582"))
 
 # ── CRM ───────────────────────────────────────────────────
-CRM_PASSWORD = os.getenv("CRM_PASSWORD", "kaskad2026")
+# Без env пароля нет: дефолт в коде = слабый общий пароль (устранено).
+# Пустое значение → login отказывает всегда (fail-closed, см. api.do_login).
+CRM_PASSWORD = os.getenv("CRM_PASSWORD", "")
 CRM_API_URL = os.getenv("CRM_API_URL", "")
 
 # ── Прокси ────────────────────────────────────────────────

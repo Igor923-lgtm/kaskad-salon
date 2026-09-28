@@ -1,9 +1,10 @@
+import deploy_secrets
 import paramiko
 import socket
 
 SERVER = '45.159.172.228'
 USER = 'root'
-PASS = 'DndhJ98X1U8LZg24'
+PASS = deploy_secrets.PASS_NEW
 
 print(f"Подключение к {SERVER}...")
 

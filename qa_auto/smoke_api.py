@@ -27,13 +27,13 @@ SALONS = [
     {
         "id": "kaskad",
         "port": 8000,
-        "pw": os.environ.get("QA_KASKAD_PW", "kaskad2026"),
+        "pw": os.environ["QA_KASKAD_PW"],
         "cookie": "crm_token_kaskad",
     },
     {
         "id": "hairos",
         "port": 8005,
-        "pw": os.environ.get("QA_HAIROS_PW", "hairos2026"),
+        "pw": os.environ["QA_HAIROS_PW"],
         "cookie": "crm_token_hairos",
     },
 ]

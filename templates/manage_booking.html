@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Управление записью — {{ salon_name }}</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
 </head>
 <body>
 <div class="main-content" style="padding:24px;max-width:560px;margin:0 auto">
@@ -22,6 +22,7 @@
   </p>
 </div>
 <script>
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 const params = new URLSearchParams(window.location.search);
 const bid = params.get('id');
 const token = params.get('token');
@@ -41,7 +42,7 @@ async function load() {
     const end = String(Math.floor(endM / 60) % 24).padStart(2, '0') + ':' + String(endM % 60).padStart(2, '0');
     const timeLabel = n > 1 ? `${b.time} – ${end}` : b.time;
     document.getElementById('card').innerHTML = `
-      <div style="font-size:15px;font-weight:600;margin-bottom:8px">${b.service_name || '—'}</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:8px">${esc(b.service_name) || '—'}</div>
       <div>Мастер: <b>${b.master_name}</b></div>
       <div>Дата: <b>${b.date}</b></div>
       <div>Время: <b>${timeLabel}</b></div>

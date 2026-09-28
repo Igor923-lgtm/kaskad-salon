@@ -1,36 +1,32 @@
 <!DOCTYPE html>
-<html lang="ru" >
+<html lang="ru" class="light-theme">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Настройки — {{ salon_name }} CRM</title>
-    <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+    <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f1a; color: #e8e8f0; }
         .main-content { padding: 20px 20px 40px; max-width: 900px; }
-        h1 { font-size: 24px; margin-bottom: 20px; color: #6C63FF; font-weight: 800; }
-        h2 { font-size: 17px; margin-bottom: 16px; color: #e8e8f0; }
-        .card { background: #161625; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
-        .setting { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .page-title { font-size: 24px; margin-bottom: 20px; color: var(--text); font-weight: 700; letter-spacing: -0.4px; }
+        h2 { font-size: 17px; margin-bottom: 16px; color: var(--text); font-weight: 600; letter-spacing: -0.2px; }
+        .setting { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 0.5px solid rgba(60,60,67,0.18); }
         .setting:last-child { border-bottom: none; }
-        .setting-label { font-size: 14px; color: #e8e8f0; }
-        .setting-desc { font-size: 13px; color: #a0a0b8; margin-top: 2px; }
+        .setting-label { font-size: 14px; color: var(--text); }
+        .setting-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
         .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; }
         .toggle input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.1); border-radius: 13px; transition: 0.3s; }
-        .slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: #e8e8f0; border-radius: 50%; transition: 0.3s; }
-        .toggle input:checked + .slider { background: linear-gradient(135deg, #6C63FF, #a855f7); }
+        .slider { position: absolute; inset: 0; background: #E5E5EA; border-radius: 13px; transition: 0.3s; }
+        .slider:before { content: ""; position: absolute; width: 22px; height: 22px; left: 2px; bottom: 2px; background: #fff; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+        .toggle input:checked + .slider { background: #007AFF; }
         .toggle input:checked + .slider:before { transform: translateX(22px); }
-        .saved { position: fixed; bottom: 20px; right: 20px; background: #2ECC71; color: #fff; padding: 12px 24px; border-radius: 10px; display: none; font-size: 14px; box-shadow: 0 4px 15px rgba(46,204,113,0.3); z-index: 100; }
+        .saved { position: fixed; bottom: 20px; right: 20px; background: #34C759; color: #fff; padding: 12px 24px; border-radius: 12px; display: none; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 100; }
         .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
-        .form-group input[type="text"] { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #e8e8f0; font-size: 14px; outline: none; }
-        .form-group input[type="text"]:focus { border-color: #6C63FF; }
-        .btn { display: inline-block; padding: 9px 18px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .btn-primary { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-        .logo-preview { width: 120px; height: 120px; border-radius: 16px; border: 2px solid rgba(255,255,255,0.1); object-fit: contain; margin-bottom: 12px; display: block; background: rgba(255,255,255,0.05); }
+        .form-group label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+        .form-group input[type="text"] { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(60,60,67,0.24); background: #fff; color: var(--text); font-size: 15px; outline: none; font-family: inherit; }
+        .form-group input[type="text"]:focus { border-color: #007AFF; }
+        .org-btn { flex: 1; padding: 14px; font-size: 15px; font-weight: 600; border: 1px solid rgba(60,60,67,0.24); background: #fff; color: var(--text); border-radius: 12px; cursor: pointer; }
+        .org-btn.on { background: #007AFF; border-color: #007AFF; color: #fff; }
+        .logo-preview { width: 120px; height: 120px; border-radius: 12px; border: 1px solid rgba(60,60,67,0.18); object-fit: contain; margin-bottom: 12px; display: block; background: #F2F2F7; }
         .file-input-wrapper { position: relative; display: inline-block; }
         .file-input-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
     </style>
@@ -38,7 +34,7 @@
 <body>
     {% include '_sidebar.html' %}
     <div class="main-content">
-        <h1>⚙️ Настройки</h1>
+        <h1 class="page-title"><i class="fa-solid fa-gear" style="font-size:20px;color:#8E8E93;margin-right:8px;"></i>Настройки</h1>
 
         <!-- Название и логотип салона -->
         <div class="card">
@@ -56,7 +52,7 @@
                 <img class="logo-preview" id="logoPreview" src="{{ salon_logo }}" alt="Логотип"
                      onerror="this.src='/static/logo.png'">
                 <div class="file-input-wrapper">
-                    <button class="btn btn-primary">📷 Загрузить логотип</button>
+                    <button class="btn btn-primary"><i class="fa-solid fa-camera" style="margin-right:6px;"></i>Загрузить логотип</button>
                     <input type="file" accept="image/*" onchange="uploadLogo(this)">
                 </div>
                 <div class="setting-desc" style="margin-top:8px;">JPG, PNG или WebP. Максимум 5 МБ. Автоматически ужимается до 512px с сохранением пропорций.</div>
@@ -67,11 +63,11 @@
         <div class="card">
             <h2>Режим работы</h2>
             <div style="display:flex; gap:12px; margin-top:8px;">
-                <button class="btn org-btn" id="orgBeauty" onclick="setOrgType('beauty')" style="flex:1; padding:14px; font-size:16px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#e8e8f0;{% if org_type != 'coworking' %} background:linear-gradient(135deg,#6C63FF,#a855f7); border-color:#6C63FF; color:#fff;{% endif %}">
-                    💄 Салон красоты
+                <button class="org-btn{% if org_type != 'coworking' %} on{% endif %}" id="orgBeauty" onclick="setOrgType('beauty')">
+                    <i class="fa-solid fa-scissors" style="margin-right:8px;"></i>Салон красоты
                 </button>
-                <button class="btn org-btn" id="orgCoworking" onclick="setOrgType('coworking')" style="flex:1; padding:14px; font-size:16px; border:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#e8e8f0;{% if org_type == 'coworking' %} background:linear-gradient(135deg,#6C63FF,#a855f7); border-color:#6C63FF; color:#fff;{% endif %}">
-                    🏢 Коворкинг
+                <button class="org-btn{% if org_type == 'coworking' %} on{% endif %}" id="orgCoworking" onclick="setOrgType('coworking')">
+                    <i class="fa-solid fa-building" style="margin-right:8px;"></i>Коворкинг
                 </button>
             </div>
             <div class="setting-desc" style="margin-top:10px;" id="orgModeHint"></div>
@@ -170,10 +166,10 @@
         <div class="card">
             <h2>Фото работ</h2>
             <p class="setting-desc" style="margin-bottom:12px;">Галерея с категориями и лимитом 15 фото — на странице «Бот».</p>
-            <a class="btn btn-primary" href="/bot#gallery">📷 Открыть галерею в Боте</a>
+            <a class="btn btn-primary" href="/bot#gallery"><i class="fa-solid fa-images" style="margin-right:6px;"></i>Открыть галерею в Боте</a>
         </div>
     </div><!-- /main-content -->
-    <div class="saved" id="saved">✓ Сохранено</div>
+    <div class="saved" id="saved"><i class="fa-solid fa-check" style="margin-right:6px;"></i>Сохранено</div>
     <script>
         function showSaved() {
             var el = document.getElementById('saved');
@@ -253,7 +249,7 @@
 
         var ORG_HINTS = {
             beauty: {
-                hint: 'Сейчас: 💄 Салон красоты. Меняется шахматка, списки и меню бота.',
+                hint: 'Сейчас: салон красоты. Меняется шахматка, списки и меню бота.',
                 items: [
                     'ЦРМ: Записи · Мастера · Услуги · Клиенты',
                     'Бот: «📅 Записаться», выбор мастера и услуги',
@@ -261,7 +257,7 @@
                 ],
             },
             coworking: {
-                hint: 'Сейчас: 🏢 Коворкинг. Меняется шахматка, списки и меню бота.',
+                hint: 'Сейчас: коворкинг. Меняется шахматка, списки и меню бота.',
                 items: [
                     'ЦРМ: Аренды · Пространства · Тарифы · Арендаторы',
                     'Бот: «🏢 Забронировать слот», без выбора мастера',
@@ -281,7 +277,7 @@
         function orgToast(msg, isError) {
             var el = document.getElementById('saved');
             el.textContent = msg;
-            el.style.background = isError ? '#FF6B6B' : '#2ECC71';
+            el.style.background = isError ? '#FF3B30' : '#34C759';
             el.style.display = 'block';
             clearTimeout(_orgToastTimer);
             _orgToastTimer = setTimeout(function () { el.style.display = 'none'; }, 3200);
@@ -292,7 +288,7 @@
                 renderOrgHint(type);
                 return;
             }
-            var label = type === 'coworking' ? '🏢 Коворкинг' : '💄 Салон красоты';
+            var label = type === 'coworking' ? 'Коворкинг' : 'Салон красоты';
             if (!confirm('Переключить режим на «' + label + '»?\\n\\nCRM и бот перестроят меню и подписи за несколько секунд.')) {
                 return;
             }
@@ -319,23 +315,8 @@
         }
 
         function updateOrgButtons(type) {
-            var beauty = document.getElementById('orgBeauty');
-            var cowork = document.getElementById('orgCoworking');
-            if (type === 'beauty') {
-                beauty.style.background = 'linear-gradient(135deg, #6C63FF, #a855f7)';
-                beauty.style.borderColor = '#6C63FF';
-                beauty.style.color = '#fff';
-                cowork.style.background = 'rgba(255,255,255,0.05)';
-                cowork.style.borderColor = 'rgba(255,255,255,0.1)';
-                cowork.style.color = '#e8e8f0';
-            } else {
-                cowork.style.background = 'linear-gradient(135deg, #6C63FF, #a855f7)';
-                cowork.style.borderColor = '#6C63FF';
-                cowork.style.color = '#fff';
-                beauty.style.background = 'rgba(255,255,255,0.05)';
-                beauty.style.borderColor = 'rgba(255,255,255,0.1)';
-                beauty.style.color = '#e8e8f0';
-            }
+            document.getElementById('orgBeauty').classList.toggle('on', type === 'beauty');
+            document.getElementById('orgCoworking').classList.toggle('on', type === 'coworking');
         }
 
         renderOrgHint(_currentOrg);

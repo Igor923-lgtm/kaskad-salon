@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#6C63FF">
+  <meta name="theme-color" content="#007AFF">
   <link rel="manifest" href="/static/manifest.json">
   <link rel="apple-touch-icon" sizes="180x180" href="/static/icon-192.png?v=2">
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
@@ -17,7 +17,7 @@
   <meta name="msapplication-TileImage" content="/static/icon-192.png">
   <title>{{ salon_name }} Мастер</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
   <style>
     .day-toggle {
       display: flex; gap: 6px; padding: 12px 16px; flex-wrap: wrap;
@@ -40,11 +40,11 @@
     .mini-schedule th, .mini-schedule td {
       border: 1px solid var(--border); padding: 6px 4px; text-align: center;
     }
-    .mini-schedule th { background: #fafafa; font-weight: 600; }
-    .mini-schedule td.slot-free { background: #f9f9f9; }
-    .mini-schedule td.slot-new { background: #FFF8E1; font-weight: 600; }
-    .mini-schedule td.slot-confirmed { background: #E8F5E9; font-weight: 600; }
-    .mini-schedule td.day-off { background: #f0f0f0; color: var(--text-light); }
+    .mini-schedule th { background: #FAFAFC; font-weight: 600; }
+    .mini-schedule td.slot-free { background: #FAFAFC; }
+    .mini-schedule td.slot-new { background: rgba(255,149,0,0.14); font-weight: 600; }
+    .mini-schedule td.slot-confirmed { background: rgba(52,199,89,0.15); font-weight: 600; }
+    .mini-schedule td.day-off { background: #ECECF1; color: var(--text-light); }
 
     .client-card {
       background: var(--card); border-radius: var(--radius); padding: 12px 16px;
@@ -121,7 +121,7 @@
 </nav>
 
 <!-- More Menu (popup) -->
-<div id="moreMenu" style="display:none;position:fixed;bottom:70px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:1000;min-width:200px;overflow:hidden">
+<div id="moreMenu" style="display:none;position:fixed;bottom:70px;right:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:1000;min-width:200px;overflow:hidden">
   <button class="more-menu-item" onclick="showTab('masters')" id="moreMasters">
     <i class="fa-solid fa-scissors"></i> Мастера
   </button>
@@ -198,7 +198,7 @@
       <button class="btn btn-outline btn-icon btn-sm" onclick="closeScheduleModal()">✕</button>
     </div>
     <div style="padding:10px 16px;display:flex;gap:8px;border-bottom:1px solid var(--border)">
-      <button class="btn btn-primary" style="flex:1;min-height:48px;font-size:16px;font-weight:700;border-radius:10px" onclick="saveSchedModal()">💾 Сохранить</button>
+      <button class="btn btn-primary" style="flex:1;min-height:48px;font-size:16px;font-weight:700;border-radius:10px" onclick="saveSchedModal()"><i class="fa-solid fa-check" style="margin-right:6px"></i>Сохранить</button>
     </div>
     <div style="padding:12px 16px">
       <input type="hidden" id="schedMasterName">
@@ -492,7 +492,7 @@ function showToast(msg, type = 'success') {
   d.setAttribute('role', 'status');
   if (type === 'error') {
     d.style.background = 'var(--danger)';
-    d.style.boxShadow = '0 4px 15px rgba(255,107,107,0.3)';
+    d.style.boxShadow = '0 2px 8px rgba(255,59,48,0.25)';
   }
   d.textContent = msg;
   document.body.appendChild(d);
@@ -528,7 +528,7 @@ function renderBookingCard(b, showActions = true) {
         <div class="time">${b.time}</div>
       </div>
       <div class="details">
-        <div class="client">${b.client_name || 'Без имени'}</div>
+        <div class="client">${esc(b.client_name) || 'Без имени'}</div>
         <div class="service">${statusBadge(b.confirmed)}</div>
       </div>
       ${showActions ? `<div class="actions">
@@ -774,9 +774,9 @@ function renderMasterDay() {
   `;
 
   // Фиксированная панель сохранения — всегда видна сверху
-  html += `<div id="saveBar" style="position:fixed;top:0;left:0;right:0;z-index:99999;padding:10px 16px;background:#6C63FF;display:flex;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
-    <button class="btn" style="flex:1;min-height:50px;font-size:17px;font-weight:800;border-radius:12px;background:#fff;color:#6C63FF" onclick="saveDateSlots()">💾 СОХРАНИТЬ</button>
-    <button class="btn" style="min-height:50px;font-size:14px;white-space:nowrap;border-radius:12px;background:${isOff?'#FF6B6B':'#4CAF50'};color:#fff" onclick="toggleDateOff()">${isOff?'🔴 Выходной':'🟢 Рабочий'}</button>
+  html += `<div id="saveBar" style="position:fixed;top:0;left:0;right:0;z-index:99999;padding:10px 16px;background:#007AFF;display:flex;gap:8px;box-shadow:0 1px 4px rgba(0,0,0,0.10)">
+    <button class="btn" style="flex:1;min-height:50px;font-size:16px;font-weight:600;border-radius:10px;background:#fff;color:#007AFF" onclick="saveDateSlots()"><i class="fa-solid fa-check" style="margin-right:6px"></i>Сохранить</button>
+    <button class="btn" style="min-height:50px;font-size:14px;white-space:nowrap;border-radius:12px;background:${isOff?'#FF3B30':'#34C759'};color:#fff" onclick="toggleDateOff()">${isOff?'🔴 Выходной':'🟢 Рабочий'}</button>
   </div>`;
 
   // Текущее расписание дня (с учётом часов салона)
@@ -824,12 +824,12 @@ function renderMasterDay() {
   for (const t of allSlots) {
     const checked = currentSlots.includes(t);
     const isBooked = occ.has(t);
-    const bg = isBooked ? '#FF6B6B' : (checked ? '#6C63FF' : 'var(--card)');
-    const border = isBooked ? '#D32F2F' : (checked ? '#5A52D5' : 'var(--border)');
+    const bg = isBooked ? '#FF3B30' : (checked ? '#007AFF' : 'var(--card)');
+    const border = isBooked ? '#FF3B30' : (checked ? '#0062CC' : 'var(--border)');
     const textColor = (isBooked || checked) ? '#fff' : 'inherit';
     const disabled = isBooked ? 'disabled' : '';
     html += `<label style="display:flex;align-items:center;justify-content:center;min-width:56px;padding:8px 6px;border:2px solid ${border};border-radius:8px;cursor:${isBooked?'default':'pointer'};font-size:13px;font-weight:600;background:${bg};color:${textColor}">
-      <input type="checkbox" value="${t}" ${checked?'checked':''} ${disabled} style="display:none" onchange="if(!${isBooked}){this.parentElement.style.borderColor=this.checked?'#5A52D5':'var(--border)';this.parentElement.style.background=this.checked?'#6C63FF':'var(--card)';this.parentElement.style.color=this.checked?'#fff':'inherit'}">
+      <input type="checkbox" value="${t}" ${checked?'checked':''} ${disabled} style="display:none" onchange="if(!${isBooked}){this.parentElement.style.borderColor=this.checked?'#0062CC':'var(--border)';this.parentElement.style.background=this.checked?'#007AFF':'var(--card)';this.parentElement.style.color=this.checked?'#fff':'inherit'}">
       ${t}
     </label>`;
   }
@@ -842,25 +842,25 @@ function renderMasterDay() {
     for (const t of displayHours) {
       const booking = occ.get(t);
       if (booking && booking._cont) {
-        html += `<div onclick="showDetail(${booking.id})" style="background:#F8B4B4;color:#5C1010;border-radius:10px;padding:6px 14px;margin-bottom:4px;display:flex;align-items:center;gap:12px;cursor:pointer;font-size:12px">
+        html += `<div onclick="showDetail(${booking.id})" style="background:rgba(255,59,48,0.10);color:#A02018;border-radius:10px;padding:6px 14px;margin-bottom:4px;display:flex;align-items:center;gap:12px;cursor:pointer;font-size:12px">
           <div style="min-width:46px;font-weight:700">${t}</div>
-          <div style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↳ продолжение · ${booking.client_name||'—'}</div>
+          <div style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↳ продолжение · ${esc(booking.client_name)||'—'}</div>
         </div>`;
       } else if (booking) {
-        const icon = booking.confirmed ? '✅' : '⏳';
+        const icon = booking.confirmed ? '<i class=\'fa-solid fa-check\'></i>' : '<i class=\'fa-solid fa-clock\'></i>';
         const statusText = booking.confirmed ? 'Подтверждена' : 'Новая';
         const endT = endOf(booking.time, booking.duration_minutes);
         const timeLabel = (slotsNeeded(booking.duration_minutes) > 1) ? `${booking.time}–${endT}` : t;
-        html += `<div onclick="showDetail(${booking.id})" style="background:#FF6B6B;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;cursor:pointer">
+        html += `<div onclick="showDetail(${booking.id})" style="background:#FF3B30;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;cursor:pointer">
           <div style="min-width:64px;font-size:15px;font-weight:700">${timeLabel}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${booking.client_name||'Без имени'}</div>
-            <div style="font-size:12px;opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${booking.service_name||statusText}${slotsNeeded(booking.duration_minutes)>1?' · '+fmtDur(booking.duration_minutes):''}</div>
+            <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(booking.client_name)||'Без имени'}</div>
+            <div style="font-size:12px;opacity:0.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(booking.service_name)||statusText}${slotsNeeded(booking.duration_minutes)>1?' · '+fmtDur(booking.duration_minutes):''}</div>
           </div>
           <div style="font-size:20px">${icon}</div>
         </div>`;
       } else {
-        html += `<div onclick="openCreate('${date}','${t}')" style="background:#6C63FF;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;cursor:pointer">
+        html += `<div onclick="openCreate('${date}','${t}')" style="background:#007AFF;color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;cursor:pointer">
           <div style="min-width:46px;font-size:17px;font-weight:700">${t}</div>
           <div style="flex:1;font-size:14px;font-weight:500">Свободно</div>
           <div style="font-size:20px;font-weight:700">+</div>
@@ -956,7 +956,7 @@ function renderAdminGrid() {
           ${isOff ? '<span style="font-size:12px;color:var(--text-light)">(выходной)</span>' : ''}
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="background:${bookingCount > 0 ? '#FF6B6B' : '#6C63FF'};color:#fff;border-radius:12px;padding:2px 8px;font-size:12px;font-weight:600;min-width:20px;text-align:center">${bookingCount}</span>
+          <span style="background:${bookingCount > 0 ? '#FF3B30' : '#007AFF'};color:#fff;border-radius:12px;padding:2px 8px;font-size:12px;font-weight:600;min-width:20px;text-align:center">${bookingCount}</span>
           ${canEditSchedule ? `<span onclick="event.stopPropagation();openMasterScheduleModal('${name}')" style="font-size:16px;padding:4px">⚙️</span>` : ''}
         </div>
       </div>`;
@@ -979,24 +979,24 @@ function renderAdminGrid() {
         HOURS.forEach(h => {
           const booking = bookedHours[h.substring(0, 2)];
           if (booking && booking._cont) {
-            gridHtml += `<div onclick="showDetail(${booking.id})" style="background:#F8B4B4;color:#5C1010;border-radius:8px;padding:6px 12px;margin-bottom:4px;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px">
+            gridHtml += `<div onclick="showDetail(${booking.id})" style="background:rgba(255,59,48,0.10);color:#A02018;border-radius:8px;padding:6px 12px;margin-bottom:4px;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px">
               <div style="min-width:44px;font-weight:700">${booking.time}</div>
-              <div style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↳ ${booking.client_name||'—'}</div>
+              <div style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↳ ${esc(booking.client_name)||'—'}</div>
             </div>`;
           } else if (booking) {
-            const icon = booking.confirmed ? '✅' : '⏳';
+            const icon = booking.confirmed ? '<i class=\'fa-solid fa-check\'></i>' : '<i class=\'fa-solid fa-clock\'></i>';
             const endT = endOf(booking.time, booking.duration_minutes);
             const timeLabel = (slotsNeeded(booking.duration_minutes) > 1) ? `${booking.time}–${endT}` : booking.time;
-            gridHtml += `<div onclick="showDetail(${booking.id})" style="background:#FF6B6B;color:#fff;border-radius:8px;padding:10px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer">
+            gridHtml += `<div onclick="showDetail(${booking.id})" style="background:#FF3B30;color:#fff;border-radius:8px;padding:10px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer">
               <div style="min-width:64px;font-size:14px;font-weight:700">${timeLabel}</div>
               <div style="flex:1;min-width:0">
-                <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${booking.client_name||'—'}</div>
-                <div style="font-size:12px;opacity:0.85">${booking.service_name||''}</div>
+                <div style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(booking.client_name)||'—'}</div>
+                <div style="font-size:12px;opacity:0.85">${esc(booking.service_name)||''}</div>
               </div>
               <div style="font-size:20px">${icon}</div>
             </div>`;
           } else {
-            gridHtml += `<div onclick="openCreate('${date}','${h}','${name}')" style="background:#6C63FF;color:#fff;border-radius:8px;padding:10px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer">
+            gridHtml += `<div onclick="openCreate('${date}','${h}','${name}')" style="background:#007AFF;color:#fff;border-radius:8px;padding:10px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;cursor:pointer">
               <div style="min-width:44px;font-size:16px;font-weight:700">${h}</div>
               <div style="flex:1;font-size:14px;font-weight:500">Свободно</div>
               <div style="font-size:20px;font-weight:700">+</div>
@@ -1194,8 +1194,8 @@ async function toggleDateOff() {
 function selectAllSlots() {
   document.querySelectorAll('#hoursGrid input[type="checkbox"]:not(:disabled)').forEach(cb => {
     cb.checked = true;
-    cb.parentElement.style.borderColor = '#5A52D5';
-    cb.parentElement.style.background = '#6C63FF';
+    cb.parentElement.style.borderColor = '#0062CC';
+    cb.parentElement.style.background = '#007AFF';
     cb.parentElement.style.color = '#fff';
     cb.parentElement.style.fontWeight = '600';
   });
@@ -1278,10 +1278,10 @@ async function loadClients(filter) {
     clients.forEach(c => {
       const lastDate = c.last_visit ? new Date(c.last_visit+'T00:00:00').toLocaleDateString('ru-RU') : '—';
       html += `
-        <div class="client-card" onclick="openClientDetail('${c.name}','${c.phone||''}','${lastDate}',${c.visit_count})" style="cursor:pointer">
+        <div class="client-card" onclick="openClientDetail('${esc(c.name)}','${esc(c.phone)||''}','${lastDate}',${c.visit_count})" style="cursor:pointer">
           <div class="client-info">
-            <div class="client-name">${c.name}</div>
-            <div class="client-meta">${c.phone || 'Нет телефона'} · Последний визит: ${lastDate}</div>
+            <div class="client-name">${esc(c.name)}</div>
+            <div class="client-meta">${esc(c.phone) || 'Нет телефона'} · Последний визит: ${lastDate}</div>
           </div>
           <div class="client-stats">
             <div class="count">${c.visit_count}</div>
@@ -1301,8 +1301,8 @@ async function loadClients(filter) {
 function openClientDetail(name, phone, lastDate, visitCount) {
   const el = document.getElementById('detailBody');
   el.innerHTML = `
-    <h3 style="margin-bottom:12px">${name}</h3>
-    <p><strong>Телефон:</strong> ${phone || 'Нет'}</p>
+    <h3 style="margin-bottom:12px">${esc(name)}</h3>
+    <p><strong>Телефон:</strong> ${esc(phone) || 'Нет'}</p>
     <p><strong>Последний визит:</strong> ${lastDate}</p>
     <p><strong>Всего визитов:</strong> ${visitCount}</p>
     <hr style="margin:12px 0;border:none;border-top:1px solid var(--border)">
@@ -1333,8 +1333,8 @@ async function loadNotes(name) {
     if (!notes.length) { notesEl.innerHTML = 'Нет заметок'; return; }
     notesEl.innerHTML = notes.map(n =>
       `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;color:var(--text-light)">${n.author} · ${new Date(n.created_at).toLocaleDateString('ru-RU')}</div>
-        <div>${n.text}</div>
+        <div style="font-size:12px;color:var(--text-light)">${esc(n.author)} · ${new Date(n.created_at).toLocaleDateString('ru-RU')}</div>
+        <div>${esc(n.text)}</div>
       </div>`
     ).join('');
   } catch(e) {
@@ -1415,7 +1415,7 @@ async function loadFinance() {
     if (byMaster.length) {
       html += '<div style="font-weight:600;font-size:13px;margin-bottom:8px;color:var(--text-light)">По мастерам:</div>';
       byMaster.slice(0, 5).forEach(m => {
-        html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px">
+        html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid rgba(60,60,67,0.18);font-size:13px">
           <span>${m.master_name}</span><span style="font-weight:600;color:var(--primary)">${m.total} BYN</span></div>`;
       });
     }
@@ -1423,7 +1423,7 @@ async function loadFinance() {
     if (byService.length) {
       html += '<div style="font-weight:600;font-size:13px;margin:12px 0 8px;color:var(--text-light)">По услугам:</div>';
       byService.slice(0, 5).forEach(s => {
-        html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px">
+        html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid rgba(60,60,67,0.18);font-size:13px">
           <span>${s.service_name}</span><span style="font-weight:600;color:var(--primary)">${s.total} BYN</span></div>`;
       });
     }
@@ -1433,7 +1433,7 @@ async function loadFinance() {
       txns.forEach(t => {
         const d = new Date(t.created_at).toLocaleDateString('ru-RU');
         const icon = t.payment_type === 'card' ? '💳' : '💵';
-        html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px">
+        html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid rgba(60,60,67,0.18);font-size:13px">
           <div><div style="font-weight:500">${t.service_name || '—'}</div><div style="color:var(--text-light);font-size:11px">${t.master_name || '—'} | ${d} ${icon}</div></div>
           <div style="font-weight:600;color:var(--primary)">${t.amount} BYN</div></div>`;
       });
@@ -1495,8 +1495,8 @@ function renderMasters() {
           <div style="font-size:10px;color:var(--text-light)">записей</div>
         </div>
         ${isAdmin ? `<div style="display:flex;gap:4px">
-          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();editMaster(${m.id},'${m.name}','${m.specialization||''}','${m.phone||''}')">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteMaster(${m.id},'${m.name}')">🗑</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();editMaster(${m.id},'${m.name}','${m.specialization||''}','${m.phone||''}')"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteMaster(${m.id},'${m.name}')"><i class="fa-solid fa-trash"></i></button>
         </div>` : ''}
       </div>
       <div id="masterBookings${i}" style="display:none;border-top:1px solid var(--border)">
@@ -1505,7 +1505,7 @@ function renderMasters() {
         </div>
         ${m.bookings.length > 0 ? `
         <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead><tr style="background:#fafafa">
+          <thead><tr style="background:#FAFAFC">
             <th style="padding:6px 8px;text-align:left">Дата</th>
             <th style="padding:6px 8px;text-align:left">Время</th>
             <th style="padding:6px 8px;text-align:left">Клиент</th>
@@ -1516,8 +1516,8 @@ function renderMasters() {
               <tr style="border-top:1px solid var(--border)">
                 <td style="padding:6px 8px">${b.date || '—'}</td>
                 <td style="padding:6px 8px">${b.time || '—'}</td>
-                <td style="padding:6px 8px">${b.client_name || '—'}</td>
-                <td style="padding:6px 8px">${b.service_name || '—'}</td>
+                <td style="padding:6px 8px">${esc(b.client_name) || '—'}</td>
+                <td style="padding:6px 8px">${esc(b.service_name) || '—'}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -1630,12 +1630,12 @@ async function loadServices() {
           </div>
           <div>
             ${(cat.services || []).map(s => `
-              <div style="display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04)">
+              <div style="display:flex;align-items:center;padding:10px 16px;border-bottom:0.5px solid rgba(60,60,67,0.18)">
                 <div style="flex:1;font-size:14px">${s.name}</div>
                 <div style="font-size:12px;color:var(--text-light);min-width:56px;text-align:right">${fmtDur(s.duration_minutes)}</div>
                 <div style="font-weight:600;font-size:14px;color:var(--primary);min-width:70px;text-align:right;margin-left:8px">${s.price || '—'}</div>
                 ${isAdmin ? `<div style="margin-left:8px;display:flex;gap:4px">
-                  <button class="btn btn-outline btn-sm" onclick='editService(${s.id})'>✏️</button>
+                  <button class="btn btn-outline btn-sm" onclick='editService(${s.id})'><i class="fa-solid fa-pen"></i></button>
                   <button class="btn btn-outline btn-sm" onclick="deleteService(${s.id}, ${JSON.stringify(s.name)})" style="color:var(--danger)">✕</button>
                 </div>` : ''}
               </div>
@@ -1851,14 +1851,14 @@ function renderBroadcast() {
 
       <div style="max-height:300px;overflow-y:auto;margin-bottom:12px;border:1px solid var(--border);border-radius:8px">
         ${(broadcastSegment === 'manual' ? filtered : filtered.slice(0, 50)).map(c => `
-          <div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <div style="display:flex;align-items:center;padding:8px 12px;border-bottom:0.5px solid rgba(60,60,67,0.18)">
             ${broadcastSegment === 'manual' ? `
               <input type="checkbox" ${broadcastSelected.has(c.telegram_id)?'checked':''}
                      onchange="toggleBroadcastSelect(${c.telegram_id})" style="margin-right:8px">
             ` : ''}
             <div style="flex:1">
-              <div style="font-size:14px">${c.name || 'Без имени'}</div>
-              <div style="font-size:12px;color:var(--text-light)">${c.phone || '—'} | ${c.last_visit || 'нет визитов'}</div>
+              <div style="font-size:14px">${esc(c.name) || 'Без имени'}</div>
+              <div style="font-size:12px;color:var(--text-light)">${esc(c.phone) || '—'} | ${c.last_visit || 'нет визитов'}</div>
             </div>
           </div>
         `).join('')}
@@ -2040,7 +2040,7 @@ function showDetail(id) {
   const el = document.getElementById('detailBody');
   el.innerHTML = `
     <div style="margin-bottom:12px">
-      <button class="btn btn-primary" style="width:100%;min-height:44px;font-size:15px;font-weight:700" onclick="saveBooking()">💾 Сохранить</button>
+      <button class="btn btn-primary" style="width:100%;min-height:44px;font-size:15px;font-weight:700" onclick="saveBooking()"><i class="fa-solid fa-check" style="margin-right:6px"></i>Сохранить</button>
     </div>
     <div style="margin-bottom:12px">
       <span class="badge ${booking.confirmed ? 'badge-confirmed' : 'badge-new'}">${booking.confirmed ? 'Подтверждена' : 'Новая'}</span>
@@ -2055,7 +2055,7 @@ function showDetail(id) {
     </div>
     <div class="form-group">
       <label>Клиент</label>
-      <input id="editClient" value="${booking.client_name || ''}" placeholder="Имя клиента">
+      <input id="editClient" value="${esc(booking.client_name) || ''}" placeholder="Имя клиента">
     </div>
     <div class="form-group">
       <label>Цена</label>
@@ -2065,7 +2065,7 @@ function showDetail(id) {
 
   const footer = document.getElementById('detailFooter');
   let btns = '';
-  if (!booking.confirmed) btns += `<button class="btn btn-info btn-sm" onclick="confirmB(${booking.id});closeDetailModal()">✅ Подтвердить</button>`;
+  if (!booking.confirmed) btns += `<button class="btn btn-info btn-sm" onclick="confirmB(${booking.id});closeDetailModal()"><i class="fa-solid fa-check" style="margin-right:4px"></i>Подтвердить</button>`;
   btns += ` <button class="btn btn-danger btn-sm" onclick="cancelB(${booking.id});closeDetailModal()">❌ Отменить</button>`;
   footer.innerHTML = btns;
 
@@ -2169,8 +2169,8 @@ function renderSchedSlots(selectedSlots) {
 
   grid.innerHTML = allSlots.map(t => {
     const checked = selectedSlots.includes(t);
-    return `<label style="display:flex;align-items:center;gap:3px;padding:5px 9px;border:2px solid ${checked ? '#5A52D5' : 'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;background:${checked ? '#6C63FF' : 'var(--card)'};color:${checked ? '#fff' : 'inherit'}">
-      <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} style="display:none" onchange="this.parentElement.style.borderColor=this.checked?'#5A52D5':'var(--border)';this.parentElement.style.background=this.checked?'#6C63FF':'var(--card)';this.parentElement.style.color=this.checked?'#fff':'inherit';this.parentElement.style.fontWeight=this.checked?'600':'400'">
+    return `<label style="display:flex;align-items:center;gap:3px;padding:5px 9px;border:2px solid ${checked ? '#0062CC' : 'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;background:${checked ? '#007AFF' : 'var(--card)'};color:${checked ? '#fff' : 'inherit'}">
+      <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} style="display:none" onchange="this.parentElement.style.borderColor=this.checked?'#0062CC':'var(--border)';this.parentElement.style.background=this.checked?'#007AFF':'var(--card)';this.parentElement.style.color=this.checked?'#fff':'inherit';this.parentElement.style.fontWeight=this.checked?'600':'400'">
       ${t}
     </label>`;
   }).join('');
@@ -2179,8 +2179,8 @@ function renderSchedSlots(selectedSlots) {
 function selectSchedAll() {
   document.querySelectorAll('#schedSlotsGrid input[type="checkbox"]').forEach(cb => {
     cb.checked = true;
-    cb.parentElement.style.borderColor = '#5A52D5';
-    cb.parentElement.style.background = '#6C63FF';
+    cb.parentElement.style.borderColor = '#0062CC';
+    cb.parentElement.style.background = '#007AFF';
     cb.parentElement.style.color = '#fff';
     cb.parentElement.style.fontWeight = '600';
   });
@@ -2262,7 +2262,7 @@ const ROLE_OPTIONS = [
   { value: 'super_admin', label: 'Создатель' },
 ];
 
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 
 function showRoleModal(title, currentRole, callback) {
   let options = ROLE_OPTIONS.map(r =>
@@ -2303,7 +2303,7 @@ async function loadUsers() {
           <div style="font-size:12px;color:var(--text-light)">${esc(u.phone || '—')}</div>
           <div style="font-size:12px;color:var(--primary);margin-top:2px">${ROLE_LABELS[u.role] || u.role}</div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="editUser(${u.id},'${esc(u.name)}','${esc(u.phone||'')}','${u.role}')">✏️</button>
+        <button class="btn btn-outline btn-sm" onclick="editUser(${u.id},'${esc(u.name)}','${esc(u.phone||'')}','${u.role}')"><i class="fa-solid fa-pen"></i></button>
       </div>`;
     });
     html += '</div>';

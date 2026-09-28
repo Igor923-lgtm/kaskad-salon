@@ -1,56 +1,52 @@
 <!DOCTYPE html>
-<html lang="ru" >
+<html lang="ru" class="light-theme">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Бот — {{ salon_name }} CRM</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f1a; color: #e8e8f0; }
     .main-content { padding: 20px 20px 40px; max-width: 900px; }
-    h1 { font-size: 24px; margin-bottom: 16px; color: #6C63FF; font-weight: 800; }
-    h2 { font-size: 17px; margin-bottom: 12px; color: #e8e8f0; }
-    .card { background: #161625; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
-    .setting { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); gap: 12px; }
+    .page-title { font-size: 24px; margin-bottom: 16px; color: var(--text); font-weight: 700; letter-spacing: -0.4px; }
+    h2 { font-size: 17px; margin-bottom: 12px; color: var(--text); font-weight: 600; letter-spacing: -0.2px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid rgba(60,60,67,0.18); gap: 12px; }
     .setting:last-child { border-bottom: none; }
-    .setting-label { font-size: 14px; }
-    .setting-desc { font-size: 12px; color: #8888a0; margin-top: 2px; }
+    .setting-label { font-size: 14px; color: var(--text); }
+    .setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
     .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; flex-shrink: 0; }
     .toggle input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; inset: 0; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.2); border-radius: 13px; transition: 0.3s; }
-    .slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: #e8e8f0; border-radius: 50%; transition: 0.3s; }
-    .toggle input:checked + .slider { background: linear-gradient(135deg, #6C63FF, #a855f7); }
+    .slider { position: absolute; inset: 0; background: #E5E5EA; border-radius: 13px; transition: 0.3s; }
+    .slider:before { content: ""; position: absolute; width: 22px; height: 22px; left: 2px; bottom: 2px; background: #fff; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .toggle input:checked + .slider { background: #007AFF; }
     .toggle input:checked + .slider:before { transform: translateX(22px); }
-    .btn { display: inline-block; padding: 8px 16px; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .btn-primary { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; }
-    .btn-danger { background: rgba(255,60,60,0.85); color: #fff; }
-    .btn-ghost { background: rgba(255,255,255,0.06); color: #e8e8f0; border: 1px solid rgba(255,255,255,0.1); }
+    .btn-ghost { background: #fff; color: var(--text); border: 1px solid rgba(60,60,67,0.24); }
+    .btn-ghost:hover { background: #F2F2F7; }
+    .btn-danger { background: #FF3B30; color: #fff; }
     .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 13px; color: #aaa; margin-bottom: 4px; }
+    .form-group label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
     .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="url"],
     .form-group select, .form-group textarea {
-      width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.05); color: #e8e8f0; font-size: 14px; outline: none;
+      width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(60,60,67,0.24);
+      background: #fff; color: var(--text); font-size: 15px; outline: none; font-family: inherit;
     }
     .form-group textarea { min-height: 90px; resize: vertical; font-family: inherit; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #6C63FF; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #007AFF; }
     .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-    .status-dot.on { background: #2ECC71; box-shadow: 0 0 6px #2ECC71; }
-    .status-dot.off { background: #e74c3c; }
-    .menu-row { display: grid; grid-template-columns: 40px 1fr 120px 1fr 90px 70px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .menu-row input, .menu-row select { width: 100%; padding: 7px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #e8e8f0; font-size: 13px; }
+    .status-dot.on { background: #34C759; }
+    .status-dot.off { background: #FF3B30; }
+    .menu-row { display: grid; grid-template-columns: 40px 1fr 120px 1fr 90px 70px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 0.5px solid rgba(60,60,67,0.18); }
+    .menu-row input, .menu-row select { width: 100%; padding: 7px 8px; border-radius: 8px; border: 1px solid rgba(60,60,67,0.24); background: #fff; color: var(--text); font-size: 13px; }
     .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; }
-    .photo-cell { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,0.04); }
+    .photo-cell { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #F2F2F7; }
     .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
-    .photo-cell .del { position: absolute; top: 4px; right: 4px; background: rgba(255,0,0,0.85); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; }
-    .saved { position: fixed; bottom: 20px; right: 20px; background: #2ECC71; color: #fff; padding: 12px 24px; border-radius: 10px; display: none; font-size: 14px; z-index: 100; }
-    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: rgba(108,99,255,0.2); color: #a8b0ff; }
+    .photo-cell .del { position: absolute; top: 4px; right: 4px; background: rgba(255,59,48,0.9); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; }
+    .saved { position: fixed; bottom: 20px; right: 20px; background: #34C759; color: #fff; padding: 12px 24px; border-radius: 12px; display: none; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 100; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(0,122,255,0.12); color: #007AFF; }
     .section-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-    .section-nav a { padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,0.05); color: #aaa; text-decoration: none; font-size: 13px; border: 1px solid rgba(255,255,255,0.06); }
-    .section-nav a.active { background: linear-gradient(135deg, #6C63FF, #a855f7); color: #fff; border-color: transparent; }
-    .hint { font-size: 12px; color: #8888a0; margin-top: 6px; }
-    .start-photo-preview { width: 120px; height: 120px; border-radius: 14px; object-fit: cover; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); display: block; margin-bottom: 10px; }
+    .section-nav a { padding: 8px 14px; border-radius: 999px; background: #fff; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; border: 1px solid rgba(60,60,67,0.18); }
+    .section-nav a.active { background: #007AFF; color: #fff; border-color: #007AFF; }
+    .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    .start-photo-preview { width: 120px; height: 120px; border-radius: 12px; object-fit: cover; border: 1px solid rgba(60,60,67,0.18); background: #F2F2F7; display: block; margin-bottom: 10px; }
     @media (max-width: 720px) {
       .menu-row { grid-template-columns: 1fr 1fr; }
     }
@@ -59,7 +55,7 @@
 <body>
 {% include '_sidebar.html' %}
 <div class="main-content">
-  <h1>🤖 Управление ботом</h1>
+  <h1 class="page-title"><i class="fa-solid fa-robot" style="font-size:20px;color:#8E8E93;margin-right:8px;"></i>Управление ботом</h1>
   <div class="setting-desc" id="menuOrgBadge" style="margin:-8px 0 16px;font-weight:600;"></div>
 
   <div class="section-nav">
@@ -97,7 +93,7 @@
       <label>Фото при нажатии Старт</label>
       <img class="start-photo-preview" id="startPhotoPreview" src="" alt="" style="display:none">
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-primary" onclick="document.getElementById('startPhotoInput').click()">📷 Загрузить фото</button>
+        <button class="btn btn-primary" onclick="document.getElementById('startPhotoInput').click()"><i class="fa-solid fa-camera" style="margin-right:6px;"></i>Загрузить фото</button>
         <button class="btn btn-danger" id="startPhotoDel" style="display:none" onclick="deleteStartPhoto()">Удалить</button>
         <input type="file" id="startPhotoInput" accept="image/*" style="display:none" onchange="uploadStartPhoto(this)">
       </div>
@@ -115,7 +111,7 @@
   <div class="card" id="menu">
     <h2>Кнопки главного меню</h2>
     <div class="hint" style="margin-bottom:10px;">Порядок = порядок в боте. Action «Раздел» открывает встроенный раздел; «URL» — ссылку.</div>
-    <div class="menu-row" style="color:#8888a0; font-size:11px; text-transform:uppercase;">
+    <div class="menu-row" style="color:#8E8E93; font-size:11px; text-transform:uppercase;">
       <div>Эмодзи</div><div>Название</div><div>Тип</div><div>Раздел / URL</div><div>Порядок</div><div></div>
     </div>
     <div id="menuList"></div>
@@ -143,7 +139,7 @@
       </div>
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn btn-primary" onclick="document.getElementById('galleryFile').click()">📷 Загрузить фото</button>
+      <button class="btn btn-primary" onclick="document.getElementById('galleryFile').click()"><i class="fa-solid fa-camera" style="margin-right:6px;"></i>Загрузить фото</button>
       <input type="file" id="galleryFile" accept="image/*" multiple style="display:none" onchange="uploadGallery(this)">
     </div>
     <div class="hint">Максимум 15 фото в одной категории.</div>
@@ -301,9 +297,7 @@ function renderMenu() {
   document.getElementById('menuList').innerHTML = html || '<div class="hint">Нет кнопок</div>';
 }
 
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-}
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 
 function onActionType(i, v) {
   menuItems[i].action_type = v;
@@ -375,9 +369,9 @@ async function loadMenu() {
     menuItems = d.items || [];
     var badge = document.getElementById('menuOrgBadge');
     if (badge) {
-      var org = d.org_type === 'coworking' ? '🏢 Режим: Коворкинг' : '💄 Режим: Салон красоты';
+      var org = d.org_type === 'coworking' ? 'Режим: Коворкинг' : 'Режим: Салон красоты';
       badge.textContent = org + ' · правится меню именно этого режима';
-      badge.style.color = d.org_type === 'coworking' ? '#4ECDC4' : '#a855f7';
+      badge.style.color = d.org_type === 'coworking' ? '#34C759' : '#007AFF';
     }
     renderMenu();
   } catch (e) { alert(e.message); }
@@ -466,11 +460,11 @@ async function loadNotify() {
         '<div style="flex:1;">' +
           '<div class="setting-label">' + esc(it.label) + ' <span class="badge">' + esc(it.type) + '</span></div>' +
           '<div class="setting-desc" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">' +
-            '<label>За сколько (ч): <input type="number" step="0.5" min="0" max="168" data-f="lead_hours" value="' + it.lead_hours + '" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#e8e8f0;"></label>' +
-            '<label>С: <input type="number" min="0" max="24" data-f="quiet_start" value="' + it.quiet_start + '" style="width:50px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#e8e8f0;"></label>' +
-            '<label>До: <input type="number" min="0" max="24" data-f="quiet_end" value="' + it.quiet_end + '" style="width:50px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#e8e8f0;"></label>' +
+            '<label>За сколько (ч): <input type="number" step="0.5" min="0" max="168" data-f="lead_hours" value="' + it.lead_hours + '" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid rgba(60,60,67,0.24);background:#fff;color:#1c1c1e;"></label>' +
+            '<label>С: <input type="number" min="0" max="24" data-f="quiet_start" value="' + it.quiet_start + '" style="width:50px;padding:4px 6px;border-radius:6px;border:1px solid rgba(60,60,67,0.24);background:#fff;color:#1c1c1e;"></label>' +
+            '<label>До: <input type="number" min="0" max="24" data-f="quiet_end" value="' + it.quiet_end + '" style="width:50px;padding:4px 6px;border-radius:6px;border:1px solid rgba(60,60,67,0.24);background:#fff;color:#1c1c1e;"></label>' +
           '</div>' +
-          '<textarea data-f="template" style="width:100%;margin-top:6px;min-height:88px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#e8e8f0;font-size:13px;white-space:pre-wrap;line-height:1.4;font-family:inherit;">' + esc(it.template || '') + '</textarea>' +
+          '<textarea data-f="template" style="width:100%;margin-top:6px;min-height:88px;padding:10px;border-radius:8px;border:1px solid rgba(60,60,67,0.24);background:#fff;color:#1c1c1e;font-size:13px;white-space:pre-wrap;line-height:1.4;font-family:inherit;">' + esc(it.template || '') + '</textarea>' +
         '</div>' +
         '<label class="toggle"><input type="checkbox" data-f="enabled"' + (it.enabled ? ' checked' : '') + '><span class="slider"></span></label>' +
       '</div>';

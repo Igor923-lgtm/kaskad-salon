@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Финансы — {{ salon_name }}</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
 </head>
 <body>
 
@@ -127,7 +127,7 @@ async function loadFinance() {
       let html = shown.map(t =>
         `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
           <span>${t.master_name} — ${t.service_name}</span>
-          <span style="font-weight:600">${t.amount} BYN (${t.payment_type === 'card' ? '💳' : '💵'})</span>
+          <span style="font-weight:600">${t.amount} BYN (${t.payment_type === 'card' ? 'Карта' : 'Наличные'})</span>
         </div>`
       ).join('');
       if (shown.length < txns.length || window._txnLimit < 100) {

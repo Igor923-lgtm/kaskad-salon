@@ -1,8 +1,9 @@
+import deploy_secrets
 import paramiko
 
 OLD_SERVER = '94.141.98.224'
 USER = 'root'
-PASS = '25ELkJTNxhwCC7vF'
+PASS = deploy_secrets.PASS_HAIROS_OLD
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())

@@ -1,10 +1,11 @@
 """upload_photos.py — Загрузка фото работ на оба сервера."""
+import deploy_secrets
 import paramiko
 import os
 
 SERVER = "92.246.128.94"
 USER = "root"
-PASS = "kf24mP2c7KQBViNi"
+PASS = deploy_secrets.PASS_KASKAD
 LOCAL_PROJECT = r"C:\Users\User\mimo\kaskad-multitenant"
 
 ssh = paramiko.SSHClient()

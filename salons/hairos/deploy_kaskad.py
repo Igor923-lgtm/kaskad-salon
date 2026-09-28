@@ -1,9 +1,12 @@
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.abspath(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")))
+import deploy_secrets
 import paramiko
 import os
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('94.141.98.224', username='root', password='25ELkJTNxhwCC7vF', timeout=15)
+ssh.connect('94.141.98.224', username='root', password=deploy_secrets.PASS_HAIROS_OLD, timeout=15)
 
 sftp = ssh.open_sftp()
 
@@ -43,7 +46,7 @@ stdin, stdout, stderr = ssh.exec_command('curl -s http://localhost:8000/health')
 print(f"Health: {stdout.read().decode().strip()}")
 
 # Test bookings grouped (need to login first)
-stdin, stdout, stderr = ssh.exec_command('curl -s -c /tmp/kaskad_cookies.txt -L -d "password=kaskad2026" http://localhost:8000/login -o /dev/null -w "%{http_code}"')
+stdin, stdout, stderr = ssh.exec_command(f'curl -s -c /tmp/kaskad_cookies.txt -L -d "password={os.environ["QA_KASKAD_PW"]}" http://localhost:8000/login -o /dev/null -w "%{{http_code}}"')
 print(f"Login: HTTP {stdout.read().decode().strip()}")
 
 stdin, stdout, stderr = ssh.exec_command('curl -s -b /tmp/kaskad_cookies.txt http://localhost:8000/api/bookings/grouped | head -c 200')

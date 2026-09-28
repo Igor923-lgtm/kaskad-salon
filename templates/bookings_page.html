@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>{{ "Аренды" if org_type == "coworking" else "Все записи" }} — {{ salon_name }}</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
   <style>
     .client-card {
       background: var(--card);
@@ -54,7 +54,7 @@
 
 <div style="padding:16px">
   <div class="page-header">
-    <h2>📋 Записи по клиентам</h2>
+    <h2><i class="fa-solid fa-clipboard-list" style="color:#8E8E93;margin-right:6px"></i>Записи по клиентам</h2>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <input type="text" id="searchInput" placeholder="Поиск по имени или телефону..." style="min-width:220px" oninput="searchClients()">
     </div>
@@ -89,6 +89,7 @@
 </div>
 
 <script>
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
 let allGroups = [];
 
 async function loadGroups(search = '') {
@@ -156,13 +157,13 @@ function renderGroups(groups) {
       <div class="client-header" onclick="toggleGroup(${i})">
         <div class="client-info">
           <div>
-            <div class="client-name">${g.client_name || 'Неизвестный'}</div>
-            <div class="client-phone">${g.phone || 'Нет телефона'}</div>
+            <div class="client-name">${esc(g.client_name) || 'Неизвестный'}</div>
+            <div class="client-phone">${esc(g.phone) || 'Нет телефона'}</div>
           </div>
         </div>
         <div class="client-stats">
-          <span>📅 ${g.bookings.length} записей</span>
-          <span>📅 Последний: ${g.last_visit || '—'}</span>
+          <span><i class="fa-solid fa-calendar" style="margin-right:4px"></i>${g.bookings.length} записей</span>
+          <span>Последний: ${g.last_visit || '—'}</span>
         </div>
         <span class="toggle-icon" id="icon${i}">▼</span>
       </div>
@@ -184,7 +185,7 @@ function renderGroups(groups) {
                 <td>${b.date || '—'}</td>
                 <td>${b.time || '—'}</td>
                 <td>${b.master_name || '—'}</td>
-                <td>${b.service_name || '—'}</td>
+                <td>${esc(b.service_name) || '—'}</td>
                 <td><span style="cursor:pointer;color:var(--primary)" onclick="editPrice(${b.id}, '${b.price || ''}')">${b.price || '—'}</span></td>
                 <td>${getStatus(b)}</td>
               </tr>

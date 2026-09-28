@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Мастера — {{ salon_name }}</title>
-  <link rel="stylesheet" href="/static/style_v6.css?v=20260925b">
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
 </head>
 <body>
 
@@ -18,7 +18,7 @@
 
 <div style="padding:16px">
   <div class="page-header">
-    <h2>👩‍🎨 Управление мастерами</h2>
+    <h2><i class="fa-solid fa-user-group" style="color:#8E8E93;margin-right:6px"></i>Управление мастерами</h2>
     <button class="btn btn-primary" onclick="openAddModal()">+ Добавить мастера</button>
   </div>
 
@@ -68,8 +68,8 @@
         <label>Тип организации</label>
         <select id="editOrgType">
           <option value="">Показывать всегда</option>
-          <option value="beauty">💄 Салон красоты</option>
-          <option value="coworking">🏢 Коворкинг</option>
+          <option value="beauty">Салон красоты</option>
+          <option value="coworking">Коворкинг</option>
         </select>
       </div>
       <div class="form-group">
@@ -95,13 +95,13 @@ async function loadMasters() {
     <tr>
       <td><strong>${m.name}</strong></td>
       <td>${m.specialization || '—'}</td>
-      <td><span class="badge">${m.org_type === 'coworking' ? '🏢' : m.org_type === 'beauty' ? '💄' : '—'} ${m.org_type || 'все'}</span></td>
+      <td><span class="badge">${m.org_type === 'coworking' ? 'Коворкинг' : m.org_type === 'beauty' ? 'Салон' : '—'} ${m.org_type || 'все'}</span></td>
       <td>${m.phone || '—'}</td>
       <td>${m.telegram_id || '—'}</td>
       <td><span class="badge ${m.is_active ? 'badge-active' : 'badge-inactive'}">${m.is_active ? 'Активен' : 'Неактивен'}</span></td>
       <td class="actions">
-        <button class="btn btn-outline btn-sm" onclick='editMaster(${JSON.stringify(m)})'>✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteMaster(${m.id}, '${m.name}')">🗑️</button>
+        <button class="btn btn-outline btn-sm" onclick='editMaster(${JSON.stringify(m)})'><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMaster(${m.id}, '${m.name}')"><i class="fa-solid fa-trash"></i></button>
       </td>
     </tr>
   `).join('');

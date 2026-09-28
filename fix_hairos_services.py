@@ -1,10 +1,11 @@
 """fix_hairos_services.py — Загрузка правильного price_data.py и восстановление услуг."""
+import deploy_secrets
 import paramiko
 import time
 
 SERVER = "92.246.128.94"
 USER = "root"
-PASS = "kf24mP2c7KQBViNi"
+PASS = deploy_secrets.PASS_KASKAD
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())

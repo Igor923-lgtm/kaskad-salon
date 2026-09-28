@@ -4,8 +4,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export QA_HOST="${QA_HOST:-92.246.128.94}"
-export QA_KASKAD_PW="${QA_KASKAD_PW:-kaskad2026}"
-export QA_HAIROS_PW="${QA_HAIROS_PW:-hairos2026}"
+export QA_KASKAD_PW="${QA_KASKAD_PW:?set QA_KASKAD_PW (CRM password)}"
+export QA_HAIROS_PW="${QA_HAIROS_PW:?set QA_HAIROS_PW (CRM password)}"
 
 echo "=== 1/2 Functional smoke ==="
 python3 qa_auto/smoke_api.py

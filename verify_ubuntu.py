@@ -1,9 +1,10 @@
 """verify_ubuntu.py — Проверка сервисов на Ubuntu сервере."""
+import deploy_secrets
 import paramiko
 
 SERVER = "92.246.128.94"
 USER = "root"
-PASS = "kf24mP2c7KQBViNi"
+PASS = deploy_secrets.PASS_KASKAD
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
