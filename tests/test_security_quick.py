@@ -172,3 +172,52 @@ def test_booking_validator_keeps_normal_names():
     assert b.client_name == "Анна-Мария (Петрова)"
     assert b.price == "120 р. + скидка"
     assert b.phone == "+375 (29) 120-61-01"
+
+
+# ── Telegram-ID мастера: поле реально сохранялось только в UI ──
+
+def test_master_create_persists_telegram_id(client):
+    """«ID в Telegram» из формы ЦРМ должен сохраняться, а не отбрасываться Pydantic."""
+    r = client.post("/api/masters", json={
+        "name": "ТГ Тест", "phone": "+375002220001", "telegram_id": 987654,
+    }, headers=_auth_headers())
+    assert r.status_code == 200, r.text
+    mid = r.json()["id"]
+
+    rows = client.get("/api/masters", headers=_auth_headers()).json()
+    row = next(m for m in rows if m["id"] == mid)
+    assert row.get("telegram_id") == 987654, f"telegram_id lost: {row.get('telegram_id')}"
+
+
+def test_master_update_persists_telegram_id(client):
+    """PUT /api/masters/{id} сохраняет переданный telegram_id."""
+    r = client.post("/api/masters", json={"name": "ТГ апдейт"}, headers=_auth_headers())
+    mid = r.json()["id"]
+
+    r = client.put(f"/api/masters/{mid}", json={
+        "name": "ТГ апдейт", "telegram_id": 555777,
+    }, headers=_auth_headers())
+    assert r.status_code == 200, r.text
+
+    rows = client.get("/api/masters", headers=_auth_headers()).json()
+    row = next(m for m in rows if m["id"] == mid)
+    assert row.get("telegram_id") == 555777
+
+
+def test_master_update_without_telegram_id_keeps_it(client):
+    """PUT без telegram_id (его шлёт PWA) не должен обнулять колонку."""
+    r = client.post("/api/masters", json={
+        "name": "ТГ сохранить", "telegram_id": 424242,
+    }, headers=_auth_headers())
+    mid = r.json()["id"]
+
+    # PWA шлёт только name/specialization/phone — telegram_id отсутствует
+    r = client.put(f"/api/masters/{mid}", json={
+        "name": "ТГ сохранить", "specialization": "новая", "phone": "+375003330001",
+    }, headers=_auth_headers())
+    assert r.status_code == 200, r.text
+
+    rows = client.get("/api/masters", headers=_auth_headers()).json()
+    row = next(m for m in rows if m["id"] == mid)
+    assert row.get("telegram_id") == 424242, "telegram_id was wiped by partial PUT"
+    assert row.get("specialization") == "новая"

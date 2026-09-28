@@ -66,8 +66,13 @@
 
   <!-- Сессии -->
   <div class="card">
-    <h2>Активные сессии</h2>
+    <h2>Кто сейчас в приложении</h2>
+    <div class="hint" style="margin-top:0;margin-bottom:10px;">
+      Сессия появляется, когда мастер вошёл по коду из Telegram. Добавить человека
+      здесь нельзя — сначала добавьте пользователя (кнопка ниже или раздел «Пользователи»).
+    </div>
     <div style="margin-bottom:10px;">
+      <button class="btn btn-primary" onclick="openAddUserModal()">+ Добавить пользователя</button>
       <button class="btn btn-danger" onclick="revokeAll()">Отозвать все сессии</button>
       <button class="btn btn-ghost" onclick="loadSessions()">Обновить</button>
     </div>
@@ -85,6 +90,10 @@
   <!-- Мастера -->
   <div class="card">
     <h2>Мастера</h2>
+    <div class="hint" style="margin-top:0;margin-bottom:10px;">
+      Профиль для расписания и записей. Доступ в приложение настраивается в разделе
+      <a href="/users" style="color:#007AFF;">«Пользователи»</a>.
+    </div>
     <div style="overflow-x:auto;">
       <table class="table" id="mastersTable">
         <thead>
@@ -92,6 +101,41 @@
         </thead>
         <tbody></tbody>
       </table>
+    </div>
+    <div class="hint">Телефон мастера должен совпадать с Telegram, на который придёт код.</div>
+  </div>
+</div>
+
+<!-- Модалка: новый пользователь -->
+<div id="addUserModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:1200;align-items:center;justify-content:center;">
+  <div class="card" style="width:min(420px,92vw);background:#fff;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h2 style="margin:0;">Новый пользователь</h2>
+      <button class="btn btn-ghost" onclick="closeAddUserModal()">✕</button>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="display:block;font-size:13px;color:var(--text-muted);margin-bottom:4px;">Имя</label>
+      <input type="text" id="auName" placeholder="Имя" style="width:100%;padding:8px 10px;border:1px solid rgba(60,60,67,0.24);border-radius:8px;">
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="display:block;font-size:13px;color:var(--text-muted);margin-bottom:4px;">Телефон</label>
+      <input type="tel" id="auPhone" placeholder="+375..." style="width:100%;padding:8px 10px;border:1px solid rgba(60,60,67,0.24);border-radius:8px;">
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label style="display:block;font-size:13px;color:var(--text-muted);margin-bottom:4px;">Роль</label>
+      <select id="auRole" style="width:100%;padding:8px 10px;border:1px solid rgba(60,60,67,0.24);border-radius:8px;background:#fff;">
+        <option value="master_edit">Мастер</option>
+        <option value="director">Администратор</option>
+        <option value="super_admin">Создатель</option>
+      </select>
+    </div>
+    <div class="hint" style="margin-bottom:14px;">
+      Созданный пользователь сможет войти в приложение по телефону + коду из Telegram.
+      Телефон должен быть привязан к его Telegram.
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeAddUserModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="submitAddUser()">Добавить</button>
     </div>
   </div>
 </div>
@@ -143,7 +187,7 @@ async function loadSessions() {
     var d = await api('/api/masters/sessions');
     var tb = document.querySelector('#sessionsTable tbody');
     if (!d.sessions.length) {
-      tb.innerHTML = '<tr><td colspan="5" style="color:#8E8E93">Нет активных сессий</td></tr>';
+      tb.innerHTML = '<tr><td colspan="5" style="color:#8E8E93">Никто не вошёл. Как только мастер зайдёт — появится здесь.</td></tr>';
       return;
     }
     tb.innerHTML = d.sessions.map(function(s, i) {
@@ -223,6 +267,31 @@ async function savePermQuick(id, view) {
 }
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
+
+// ── Новый пользователь (создаёт строку в masters → может войти в приложение) ──
+function openAddUserModal() {
+  document.getElementById('auName').value = '';
+  document.getElementById('auPhone').value = '';
+  document.getElementById('auRole').value = 'master_edit';
+  document.getElementById('addUserModal').style.display = 'flex';
+}
+function closeAddUserModal() {
+  document.getElementById('addUserModal').style.display = 'none';
+}
+async function submitAddUser() {
+  var name = document.getElementById('auName').value.trim();
+  var phone = document.getElementById('auPhone').value.trim();
+  var role = document.getElementById('auRole').value;
+  if (!name) { alert('Введите имя'); return; }
+  if (!phone) { alert('Введите телефон'); return; }
+  try {
+    await api('/api/users', { method: 'POST', body: { name: name, phone: phone, role: role } });
+    closeAddUserModal();
+    showSaved();
+    loadMasters();
+    loadSessions();
+  } catch (e) { alert(e.message); }
+}
 
 loadLogin();
 loadSessions();

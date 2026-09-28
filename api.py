@@ -299,6 +299,9 @@ class MasterCreate(BaseModel):
     categories: str = ""
     phone: str = ""
     org_type: str = ""  # beauty | coworking | '' (показывать всем)
+    # None = поле не передано → в UPDATE колонку не трогаем (иначе PUT из
+    # PWA, который шлёт только name/spec/phone, затирал бы telegram_id нулём).
+    telegram_id: int | None = None
 
 class ScheduleItem(BaseModel):
     day_of_week: int
@@ -1186,8 +1189,8 @@ async def create_master(m: MasterCreate):
     org = m.org_type or await _current_org_type()
     async with aiosqlite.connect(config.DB_PATH) as db:
         cur = await db.execute(
-            "INSERT INTO masters (name, specialization, description, categories, phone, org_type) VALUES (?,?,?,?,?,?)",
-            (m.name, m.specialization, m.description, m.categories, m.phone, org),
+            "INSERT INTO masters (name, specialization, description, categories, phone, org_type, telegram_id) VALUES (?,?,?,?,?,?,?)",
+            (m.name, m.specialization, m.description, m.categories, m.phone, org, m.telegram_id or 0),
         )
         await db.commit()
         await _seed_master_work_week(db, m.name)
@@ -1197,10 +1200,17 @@ async def create_master(m: MasterCreate):
 async def update_master(master_id: int, m: MasterCreate):
     org = m.org_type or await _current_org_type()
     async with aiosqlite.connect(config.DB_PATH) as db:
-        await db.execute(
-            "UPDATE masters SET name=?, specialization=?, description=?, categories=?, phone=?, org_type=? WHERE id=?",
-            (m.name, m.specialization, m.description, m.categories, m.phone, org, master_id),
-        )
+        # telegram_id обновляем только если он передан: PWA шлёт PUT без него.
+        if m.telegram_id is not None:
+            await db.execute(
+                "UPDATE masters SET name=?, specialization=?, description=?, categories=?, phone=?, org_type=?, telegram_id=? WHERE id=?",
+                (m.name, m.specialization, m.description, m.categories, m.phone, org, m.telegram_id, master_id),
+            )
+        else:
+            await db.execute(
+                "UPDATE masters SET name=?, specialization=?, description=?, categories=?, phone=?, org_type=? WHERE id=?",
+                (m.name, m.specialization, m.description, m.categories, m.phone, org, master_id),
+            )
         await db.commit()
         return {"status": "ok"}
 

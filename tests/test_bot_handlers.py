@@ -81,3 +81,36 @@ def test_catch_all_is_last_in_group1(app):
 def test_conversation_fallback_answers_unmatched_callbacks(conv):
     """В активном состоянии несматченный callback получает alert, а не спиннер."""
     assert ".*" in _patterns(conv.fallbacks)
+
+
+def test_no_gender_keyboard_in_source():
+    """Выбор пола в боте убран: кнопок «Женщине/Мужчине» в коде нет."""
+    src = open(bot.__file__, encoding="utf-8").read()
+    assert 'callback_data="gender_' not in src
+    assert 'callback_data="price_gender_' not in src
+    assert "Кому записываемся?" not in src
+    assert "Тарифы для кого?" not in src
+    assert "Прайс-лист для кого?" not in src
+
+
+def test_legacy_gender_callbacks_still_answered(conv):
+    """Старые кнопки из старых сообщений не должны оставлять спиннер.
+
+    Выбор пола убран, поэтому хендлеры перенесены в entry-точки:
+    они срабатывают из любого состояния (включая state=None).
+    """
+    entry = _patterns(conv.entry_points)
+    assert "^gender_" in entry, "legacy gender entry point missing"
+    assert "^price_gender_" in entry, "legacy price_gender entry point missing"
+
+
+def test_booking_sections_has_no_gender_filter():
+    """_booking_sections_kb не принимает пол и не фильтрует разделы."""
+    import inspect
+
+    sig = inspect.signature(bot._booking_sections_kb)
+    assert list(sig.parameters) == [], f"unexpected params: {list(sig.parameters)}"
+
+    src = inspect.getsource(bot._booking_sections_kb)
+    assert 'gender == "m"' not in src
+    assert "трихопигмент" not in src

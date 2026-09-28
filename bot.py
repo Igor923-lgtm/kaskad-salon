@@ -309,38 +309,36 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 #  Клиент: Услуги и цены
 # ══════════════════════════════════════════════════════════
 
-async def cb_services(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    prompt = "Тарифы для кого?" if await _is_coworking_org() else "Прайс-лист для кого?"
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👩 Женщине", callback_data="price_gender_f")],
-        [InlineKeyboardButton("👨 Мужчине", callback_data="price_gender_m")],
-        [InlineKeyboardButton("◀️ Назад", callback_data="back_main")],
-    ])
-    await query.edit_message_text(prompt, reply_markup=kb)
-    return BOOK_SELECT_GENDER
-
-
-async def services_select_gender(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    gender = query.data.replace("price_gender_", "")
+async def _price_sections_kb() -> tuple[str, InlineKeyboardMarkup]:
+    """Клавиатура разделов прайс-листа — все разделы, без выбора пола."""
     sections = await db.get_services_by_category()
     kb = []
     for i, section in enumerate(sections):
-        title = section["title"]
-        if gender == "m":
-            if any(kw in title.lower() for kw in ["мужск", "стрижка", "окрашив", "барбер"]):
-                kb.append([InlineKeyboardButton(title[:40], callback_data=f"price_sec_{i}")])
-        else:
-            if not any(kw in title.lower() for kw in ["мужск", "барбер"]):
-                kb.append([InlineKeyboardButton(title[:40], callback_data=f"price_sec_{i}")])
+        kb.append([InlineKeyboardButton(section["title"][:40], callback_data=f"price_sec_{i}")])
     if not kb:
         kb.append([InlineKeyboardButton("Нет услуг", callback_data="back_main")])
     else:
         kb.append([InlineKeyboardButton("◀️ Назад", callback_data="back_main")])
-    await query.edit_message_text("Выберите раздел:", reply_markup=InlineKeyboardMarkup(kb))
+    return "Выберите раздел:", InlineKeyboardMarkup(kb)
+
+
+async def cb_services(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    text, kb = await _price_sections_kb()
+    await query.edit_message_text(text, reply_markup=kb)
+    return BOOK_SELECT_SERVICE
+
+
+async def services_select_gender(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Переходник: кнопки «Женщине/Мужчине» из старых сообщений чата.
+
+    Выбор пола убран — показываем все разделы (см. _price_sections_kb).
+    """
+    query = update.callback_query
+    await query.answer()
+    text, kb = await _price_sections_kb()
+    await query.edit_message_text(text, reply_markup=kb)
     return BOOK_SELECT_SERVICE
 
 
@@ -659,23 +657,17 @@ async def _send_consultation(ctx, name, phone, username):
 #  Клиент: Запись
 # ══════════════════════════════════════════════════════════
 
-async def _booking_sections_kb(gender: str | None = None) -> tuple[str, InlineKeyboardMarkup]:
-    """Клавиатура разделов при записи. gender=None — все разделы (коворкинг)."""
+async def _booking_sections_kb() -> tuple[str, InlineKeyboardMarkup]:
+    """Клавиатура разделов при записи — все разделы, без выбора пола."""
     sections = await db.get_services_by_category()
     kb = [[InlineKeyboardButton("💬 КОНСУЛЬТАЦИЯ", callback_data="consultation")]]
     for i, section in enumerate(sections):
-        title = section["title"]
-        if gender == "m":
-            if "smp" in title.lower() or "трихопигмент" in title.lower():
-                kb.append([InlineKeyboardButton(title[:40], callback_data=f"book_sec_{i}")])
-        else:
-            kb.append([InlineKeyboardButton(title[:40], callback_data=f"book_sec_{i}")])
+        kb.append([InlineKeyboardButton(section["title"][:40], callback_data=f"book_sec_{i}")])
     if len(kb) == 1 and not sections:
         kb = [[InlineKeyboardButton("Нет услуг", callback_data="back_main")]]
     else:
         kb.append([InlineKeyboardButton("◀️ Назад", callback_data="back_main")])
-    text = "Выберите тариф:" if gender is None else "Выберите раздел услуг:"
-    return text, InlineKeyboardMarkup(kb)
+    return "Выберите раздел услуг:", InlineKeyboardMarkup(kb)
 
 
 async def cb_book(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -683,27 +675,23 @@ async def cb_book(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     log.info(f"BOOK: cb_book called, user={query.from_user.id}")
     ctx.user_data["booking"] = {}
-    if await _is_coworking_org():
-        # В коворкинге пол и мастера не выбираем — сразу тарифы
-        text, kb = await _booking_sections_kb(None)
-        await query.edit_message_text(text, reply_markup=kb)
-        return BOOK_SELECT_SERVICE
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👩 Женщине", callback_data="gender_f")],
-        [InlineKeyboardButton("👨 Мужчине", callback_data="gender_m")],
-        [InlineKeyboardButton("◀️ Назад", callback_data="back_main")],
-    ])
-    await query.edit_message_text("Кому записываемся?", reply_markup=kb)
-    return BOOK_SELECT_GENDER
+    text, kb = await _booking_sections_kb()
+    await query.edit_message_text(text, reply_markup=kb)
+    return BOOK_SELECT_SERVICE
 
 
 async def book_select_gender(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Переходник: кнопки «Женщине/Мужчине» из старых сообщений чата.
+
+    Выбор пола убран — показываем все разделы (см. _booking_sections_kb).
+    """
     query = update.callback_query
     await query.answer()
     gender = query.data.replace("gender_", "")
-    ctx.user_data["booking"]["gender"] = gender
-    log.info(f"BOOK: gender selected = {gender}, state={ctx.user_data.get('booking', {})}")
-    text, kb = await _booking_sections_kb(gender)
+    # entry-point может сработать без cb_book — booking ещё не создан
+    ctx.user_data.setdefault("booking", {})["gender"] = gender
+    log.info(f"BOOK: legacy gender click = {gender}, state={ctx.user_data.get('booking', {})}")
+    text, kb = await _booking_sections_kb()
     await query.edit_message_text(text, reply_markup=kb)
     return BOOK_SELECT_SERVICE
 
@@ -1795,13 +1783,10 @@ async def cb_edit_pick(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ctx.user_data["edit_old_booking_id"] = booking_id
     ctx.user_data["booking"] = {}
 
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👩 Женщине", callback_data="gender_f")],
-        [InlineKeyboardButton("👨 Мужчине", callback_data="gender_m")],
-        [InlineKeyboardButton("◀️ Назад", callback_data="back_main")],
-    ])
-    await query.edit_message_text("Кому записываемся?", reply_markup=kb)
-    return BOOK_SELECT_GENDER
+    # Выбор пола убран — сразу разделы (тот же флоу, что и в cb_book)
+    text, kb = await _booking_sections_kb()
+    await query.edit_message_text(text, reply_markup=kb)
+    return BOOK_SELECT_SERVICE
 
 
 # ══════════════════════════════════════════════════════════
@@ -3840,6 +3825,10 @@ def build_application():
             CallbackQueryHandler(cb_coworking, pattern="^coworking$"),
             CallbackQueryHandler(cb_back_main, pattern="^back_main$"),
             CallbackQueryHandler(cb_consultation, pattern="^consultation$"),
+            # Legacy-кнопки выбора пола из старых сообщений: выбор убран,
+            # клик должен показать разделы, а не оставить спиннер.
+            CallbackQueryHandler(book_select_gender, pattern="^gender_"),
+            CallbackQueryHandler(services_select_gender, pattern="^price_gender_"),
         ],
         states={
             MAIN_MENU: [
