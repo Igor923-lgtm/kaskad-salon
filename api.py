@@ -647,7 +647,7 @@ async def page_analytics(request: Request):
 @app.get("/users", response_class=HTMLResponse)
 async def page_users(request: Request):
     ctx = await _template_context(request, page="users")
-    r = templates.TemplateResponse(request, "users_page.html", ctx)
+    r = templates.TemplateResponse(request, "staff_page.html", ctx)
     _no_cache(r)
     return r
 
@@ -667,8 +667,9 @@ async def page_bot(request: Request):
 
 @app.get("/masters-app", response_class=HTMLResponse)
 async def page_masters_app(request: Request):
-    ctx = await _template_context(request, page="masters-app")
-    r = templates.TemplateResponse(request, "masters_app.html", ctx)
+    # Старый URL живёт: страница «Приложение» слита в «Сотрудников» (/users)
+    ctx = await _template_context(request, page="users")
+    r = templates.TemplateResponse(request, "staff_page.html", ctx)
     _no_cache(r)
     return r
 

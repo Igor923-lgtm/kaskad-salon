@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ru" class="light-theme">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Сотрудники — {{ salon_name }}</title>
+  <link rel="stylesheet" href="/static/style_v6.css?v=20260928b">
+  <style>
+    .main-content { padding: 20px 20px 40px; max-width: 900px; }
+    .page-title { font-size: 24px; margin-bottom: 8px; color: var(--text); font-weight: 700; letter-spacing: -0.4px; }
+    h2 { font-size: 17px; margin-bottom: 12px; color: var(--text); font-weight: 600; letter-spacing: -0.2px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid rgba(60,60,67,0.18); gap: 12px; }
+    .setting:last-child { border-bottom: none; }
+    .setting-label { font-size: 14px; color: var(--text); }
+    .setting-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    .toggle { position: relative; width: 48px; height: 26px; cursor: pointer; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: #E5E5EA; border-radius: 13px; transition: 0.3s; }
+    .slider:before { content: ""; position: absolute; width: 22px; height: 22px; left: 2px; bottom: 2px; background: #fff; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .toggle input:checked + .slider { background: #007AFF; }
+    .toggle input:checked + .slider:before { transform: translateX(22px); }
+    .btn-danger { background: #FF3B30; color: #fff; }
+    .btn-ghost { background: #fff; color: var(--text); border: 1px solid rgba(60,60,67,0.24); }
+    .btn-ghost:hover { background: #F2F2F7; }
+    .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .table th, .table td { padding: 8px 10px; text-align: left; border-bottom: 0.5px solid rgba(60,60,67,0.18); }
+    .table th { color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(0,122,255,0.12); color: #007AFF; }
+    .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    .saved { position: fixed; bottom: 20px; right: 20px; background: #34C759; color: #fff; padding: 12px 24px; border-radius: 12px; display: none; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 100; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+    .form-group input, .form-group select {
+      width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(60,60,67,0.24);
+      background: #fff; color: var(--text); font-size: 15px; outline: none; font-family: inherit;
+    }
+    .invite-step { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
+    .invite-step .num { background: #007AFF; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .invite-link { font-family: ui-monospace, monospace; background: #F2F2F7; border: 1px solid rgba(60,60,67,0.18); border-radius: 8px; padding: 8px 10px; font-size: 13px; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+<div class="main-content">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <h1 class="page-title"><i class="fa-solid fa-user-gear" style="font-size:20px;color:#8E8E93;margin-right:8px;"></i>Сотрудники</h1>
+    <button class="btn btn-primary" onclick="showAddUser()">+ Добавить</button>
+  </div>
+  <p class="setting-desc" style="margin:0 0 16px;max-width:720px;">
+    Здесь всё про людей, которые заходят в приложение: телефоны, роли, входы и сессии.
+    Профиль мастера для расписания — в разделе <a href="/masters" style="color:#007AFF;">«Мастера»</a>.
+  </p>
+
+  <!-- Как пригласить -->
+  <div class="card">
+    <h2>Как пригласить мастера</h2>
+    <div class="invite-step"><span class="num">1</span><span>Добавьте сотрудника кнопкой «+ Добавить» — укажите имя и его телефон.</span></div>
+    <div class="invite-step"><span class="num">2</span><span>Отправьте ему ссылку на вход:</span></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 10px 32px">
+      <span class="invite-link" id="inviteLink">/master</span>
+      <button class="btn btn-outline btn-sm" onclick="copyInviteLink()"><i class="fa-regular fa-copy" style="margin-right:6px;"></i>Скопировать ссылку</button>
+    </div>
+    <div class="invite-step"><span class="num">3</span><span>Он открывает ссылку, вводит телефон — и получает код входа в Telegram. Всё, он внутри.</span></div>
+    <div class="setting" style="margin-top:6px">
+      <div>
+        <div class="setting-label">Прямые ссылки</div>
+        <div class="setting-desc">Вход для мастеров и их рабочая панель.</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <a href="/master" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">Вход (/master)</a>
+        <a href="/master/dashboard" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">Панель</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Сотрудники -->
+  <div class="card">
+    <h2>Сотрудники</h2>
+    <div class="hint" style="margin-top:0;margin-bottom:10px;">Роль решает, что человек видит в приложении: Мастер — только своё, Администратор — всё, Создатель — всё + управление людьми.</div>
+    <div id="usersList"></div>
+  </div>
+
+  <!-- Вход в приложение -->
+  <div class="card">
+    <h2>Вход в приложение</h2>
+    <div class="setting">
+      <div>
+        <div class="setting-label">Мастера могут входить</div>
+        <div class="setting-desc">Если выключить — новые входы закрыты. Уже вошедшие работают до отзыва сессий.</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="loginEnabled" checked onchange="toggleLogin()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Кто сейчас в приложении -->
+  <div class="card">
+    <h2>Кто сейчас в приложении</h2>
+    <div class="hint" style="margin-top:0;margin-bottom:10px;">
+      Сессия появляется, когда сотрудник вошёл по коду из Telegram. Отзыв выкидывает его из приложения.
+    </div>
+    <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-danger" onclick="revokeAll()">Отозвать все сессии</button>
+      <button class="btn btn-ghost" onclick="loadSessions()">Обновить</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table" id="sessionsTable">
+        <thead>
+          <tr><th>Сотрудник</th><th>Роль</th><th>ID в Telegram</th><th>Действует до</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Мастера: вход -->
+  <div class="card">
+    <h2>Кто может входить</h2>
+    <div class="hint" style="margin-top:0;margin-bottom:10px;">
+      Выключите у человека, которому больше не нужно входить в приложение.
+      Телефон должен совпадать с его Telegram — на него придёт код.
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="table" id="mastersTable">
+        <thead>
+          <tr><th>Имя</th><th>Вход</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка: добавить сотрудника -->
+<div class="modal-overlay" id="addUserModal" style="display:none" onclick="if(event.target===this)closeAddUserModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Новый сотрудник</h2>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeAddUserModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Имя</label>
+        <input type="text" id="auName" placeholder="Имя">
+      </div>
+      <div class="form-group">
+        <label>Телефон</label>
+        <input type="tel" id="auPhone" placeholder="+375...">
+      </div>
+      <div class="form-group">
+        <label>Роль</label>
+        <select id="auRole">
+          <option value="master_edit">Мастер</option>
+          <option value="director">Администратор</option>
+          <option value="super_admin">Создатель</option>
+        </select>
+      </div>
+      <div class="hint">Телефон должен совпадать с Telegram сотрудника — код входа придёт туда.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddUserModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="submitAddUser()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<div class="saved" id="saved">✓ Сохранено</div>
+
+<script>
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
+
+function showSaved() {
+  var el = document.getElementById('saved');
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 2000);
+}
+
+async function api(url, opts) {
+  opts = opts || {};
+  opts.credentials = 'same-origin';
+  if (opts.body && !(opts.body instanceof FormData) && typeof opts.body === 'object') {
+    opts.headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+    opts.body = JSON.stringify(opts.body);
+  }
+  var resp = await fetch(url, opts);
+  if (!resp.ok) {
+    var err = await resp.json().catch(function() { return {}; });
+    throw new Error(err.detail || ('Ошибка ' + resp.status));
+  }
+  return resp.json();
+}
+
+// ── Ссылка на вход ──
+function inviteUrl() { return location.origin + '/master'; }
+
+function copyInviteLink() {
+  var url = inviteUrl();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function() {
+      showSaved();
+      document.getElementById('saved').textContent = '✓ Ссылка скопирована';
+      setTimeout(function() { document.getElementById('saved').textContent = '✓ Сохранено'; }, 2200);
+    }).catch(function() { prompt('Скопируйте ссылку:', url); });
+  } else {
+    prompt('Скопируйте ссылку:', url);
+  }
+}
+
+// ── Сотрудники (список, роли, добавление) ──
+const ROLE_LABELS = {
+  super_admin: 'Создатель',
+  director: 'Администратор',
+  master_edit: 'Мастер',
+};
+const ROLE_OPTIONS = [
+  { value: 'master_edit', label: 'Мастер' },
+  { value: 'director', label: 'Администратор' },
+  { value: 'super_admin', label: 'Создатель' },
+];
+
+function showRoleModal(title, currentRole, callback) {
+  var options = ROLE_OPTIONS.map(function(r) {
+    return '<option value="' + r.value + '"' + (r.value === currentRole ? ' selected' : '') + '>' + r.label + '</option>';
+  }).join('');
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = '<div style="background:#fff;border:1px solid rgba(60,60,67,0.14);border-radius:14px;padding:20px;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.12)">' +
+    '<div style="font-weight:600;font-size:16px;margin-bottom:16px;color:#1c1c1e">' + esc(title) + '</div>' +
+    '<select id="roleSelect" style="width:100%;padding:10px;border:1px solid rgba(60,60,67,0.24);border-radius:10px;font-size:15px;margin-bottom:16px;background:#fff;color:#1c1c1e">' + options + '</select>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button class="btn btn-outline" onclick="this.closest(\'div[style*=fixed]\').remove()">Отмена</button>' +
+      '<button class="btn btn-primary" id="roleConfirm">OK</button>' +
+    '</div></div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#roleConfirm').onclick = function() {
+    var val = overlay.querySelector('#roleSelect').value;
+    overlay.remove();
+    callback(val);
+  };
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+}
+
+async function loadUsers() {
+  try {
+    var users = await api('/api/users');
+    var html = '';
+    users.forEach(function(u) {
+      html += '<div class="card" style="margin-bottom:8px;padding:12px 16px;display:flex;align-items:center;gap:12px">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:600;font-size:15px">' + esc(u.name) + '</div>' +
+          '<div style="font-size:12px;color:#8E8E93">' + esc(u.phone || '—') + '</div>' +
+          '<div style="font-size:12px;color:#007AFF;margin-top:2px">' + (ROLE_LABELS[u.role] || u.role) + '</div>' +
+        '</div>' +
+        '<button class="btn btn-outline btn-sm" onclick="editUser(' + u.id + ',\'' + esc(u.name) + '\',\'' + esc(u.phone || '') + '\',\'' + u.role + '\')" title="Сменить роль"><i class="fa-solid fa-pen"></i></button>' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteUser(' + u.id + ',\'' + esc(u.name) + '\')" title="Деактивировать"><i class="fa-solid fa-trash"></i></button>' +
+      '</div>';
+    });
+    document.getElementById('usersList').innerHTML = html || '<div class="card" style="padding:20px;text-align:center;color:#8E8E93">Пока никого. Нажмите «+ Добавить».</div>';
+  } catch (e) {
+    document.getElementById('usersList').innerHTML = '<div class="card" style="padding:20px;color:red">Ошибка загрузки</div>';
+  }
+}
+
+function showAddUser() {
+  document.getElementById('auName').value = '';
+  document.getElementById('auPhone').value = '';
+  document.getElementById('auRole').value = 'master_edit';
+  document.getElementById('addUserModal').style.display = 'flex';
+}
+
+function closeAddUserModal() {
+  document.getElementById('addUserModal').style.display = 'none';
+}
+
+async function submitAddUser() {
+  var name = document.getElementById('auName').value.trim();
+  var phone = document.getElementById('auPhone').value.trim();
+  var role = document.getElementById('auRole').value;
+  if (!name) { alert('Введите имя'); return; }
+  if (!phone) { alert('Введите телефон'); return; }
+  try {
+    await api('/api/users', { method: 'POST', body: { name: name, phone: phone, role: role } });
+    closeAddUserModal();
+    showSaved();
+    loadUsers();
+    loadMasters();
+  } catch (e) { alert(e.message); }
+}
+
+function editUser(id, name, phone, role) {
+  showRoleModal('Роль для ' + name, role, function(newRole) {
+    if (newRole === role) return;
+    api('/api/users/' + id, { method: 'PUT', body: { role: newRole } })
+      .then(function() { showSaved(); loadUsers(); loadSessions(); })
+      .catch(function(e) { alert(e.message); });
+  });
+}
+
+function deleteUser(id, name) {
+  if (!confirm('Деактивировать ' + name + '? Он потеряет вход в приложение.')) return;
+  api('/api/users/' + id, { method: 'DELETE' })
+    .then(function() { showSaved(); loadUsers(); })
+    .catch(function(e) { alert(e.message); });
+}
+
+// ── Вход в приложение (глобально) ──
+async function loadLogin() {
+  try {
+    var d = await api('/api/masters/app-status');
+    document.getElementById('loginEnabled').checked = !!d.login_enabled;
+  } catch (e) {}
+}
+
+async function toggleLogin() {
+  var on = document.getElementById('loginEnabled').checked;
+  try {
+    await api('/api/masters/0/login', { method: 'PUT', body: { enabled: on } });
+    showSaved();
+  } catch (e) {
+    alert(e.message);
+    document.getElementById('loginEnabled').checked = !on;
+  }
+}
+
+// ── Сессии ──
+async function loadSessions() {
+  try {
+    var d = await api('/api/masters/sessions');
+    var tb = document.querySelector('#sessionsTable tbody');
+    if (!d.sessions.length) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:#8E8E93">Никто не вошёл. Как только сотрудник зайдёт — появится здесь.</td></tr>';
+      return;
+    }
+    tb.innerHTML = d.sessions.map(function(s, i) {
+      return '<tr>' +
+        '<td>' + esc(s.master_name || '—') + '</td>' +
+        '<td><span class="badge">' + (ROLE_LABELS[s.role] || s.role || 'Мастер') + '</span></td>' +
+        '<td>' + esc(s.telegram_id || '—') + '</td>' +
+        '<td>' + esc(s.expires || '—') + '</td>' +
+        '<td><button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="revokeOne(' + i + ')">Отозвать</button></td>' +
+      '</tr>';
+    }).join('');
+    window._sessions = d.sessions;
+  } catch (e) { alert(e.message); }
+}
+
+async function revokeOne(i) {
+  var s = (window._sessions || [])[i];
+  if (!s || !s.token) { alert('Сессия не найдена'); return; }
+  if (!confirm('Отозвать сессию «' + (s.master_name || '') + '»?')) return;
+  try {
+    await api('/api/masters/sessions/' + encodeURIComponent(s.token), { method: 'DELETE' });
+    showSaved();
+    loadSessions();
+  } catch (e) { alert(e.message); }
+}
+
+async function revokeAll() {
+  if (!confirm('Отозвать ВСЕ сессии? Все будут разлогинены.')) return;
+  try {
+    await api('/api/masters/sessions/revoke-all', { method: 'POST' });
+    showSaved();
+    loadSessions();
+  } catch (e) { alert(e.message); }
+}
+
+// ── Кто может входить (мастера, is_active) ──
+async function loadMasters() {
+  try {
+    var masters = await api('/api/masters');
+    var tb = document.querySelector('#mastersTable tbody');
+    var rows = (masters || []).map(function(m) {
+      var active = m.is_active !== 0;
+      return '<tr data-id="' + m.id + '">' +
+        '<td>' + esc(m.name) + '</td>' +
+        '<td><label class="toggle"><input type="checkbox"' + (active ? ' checked' : '') +
+          ' onchange="toggleMaster(' + m.id + ', this.checked)"><span class="slider"></span></label></td>' +
+      '</tr>';
+    });
+    tb.innerHTML = rows.join('') || '<tr><td colspan="2" style="color:#8E8E93">Мастеров пока нет — добавьте их в разделе «Мастера».</td></tr>';
+  } catch (e) { alert(e.message); }
+}
+
+async function toggleMaster(id, enabled) {
+  try {
+    await api('/api/masters/' + id + '/login', { method: 'PUT', body: { enabled: enabled } });
+    showSaved();
+  } catch (e) { alert(e.message); }
+}
+
+document.getElementById('inviteLink').textContent = inviteUrl();
+loadUsers();
+loadLogin();
+loadSessions();
+loadMasters();
+</script>
+</body>
+</html>
