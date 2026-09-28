@@ -29,6 +29,11 @@
         .logo-preview { width: 120px; height: 120px; border-radius: 12px; border: 1px solid rgba(60,60,67,0.18); object-fit: contain; margin-bottom: 12px; display: block; background: #F2F2F7; }
         .file-input-wrapper { position: relative; display: inline-block; }
         .file-input-wrapper input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; }
+        .photo-cell { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #F2F2F7; }
+        .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-cell .del { position: absolute; top: 4px; right: 4px; background: rgba(255,59,48,0.9); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; }
     </style>
 </head>
 <body>
@@ -162,11 +167,62 @@
             <button class="btn btn-primary" onclick="saveBuffer()">Сохранить буфер</button>
         </div>
 
-        <!-- Фото работ → единая галерея в «Бот» -->
+        <!-- Галерея работ (перенесена сюда из страницы «Бот») -->
+        <div class="card" id="gallery">
+            <h2>Галерея работ</h2>
+            <p class="setting-desc" style="margin-bottom:12px;">Фото, которые клиент видит в боте и виджете. До 15 фото в категории.</p>
+            <div class="form-group">
+                <label>Категория</label>
+                <select id="galleryCat" onchange="loadGallery()" style="width:100%; padding:10px 14px; border-radius:10px; border:1px solid rgba(60,60,67,0.24); background:#fff; color:var(--text); font-size:15px; font-family:inherit;"></select>
+            </div>
+            <div class="photo-grid" id="galleryList"></div>
+            <div class="form-group">
+                <label>Новая категория (папка)</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="newCatLabel" placeholder="Название (🔽 …)" style="flex:1">
+                    <input type="text" id="newCatFolder" placeholder="имя_папки" style="flex:1">
+                    <button class="btn btn-outline" onclick="addCategory()">Добавить</button>
+                </div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="document.getElementById('galleryFile').click()"><i class="fa-solid fa-camera" style="margin-right:6px;"></i>Загрузить фото</button>
+                <input type="file" id="galleryFile" accept="image/*" multiple style="display:none" onchange="uploadGallery(this)">
+            </div>
+            <div class="hint">Максимум 15 фото в одной категории.</div>
+        </div>
+
+        <!-- Промокоды -->
         <div class="card">
-            <h2>Фото работ</h2>
-            <p class="setting-desc" style="margin-bottom:12px;">Галерея с категориями и лимитом 15 фото — на странице «Бот».</p>
-            <a class="btn btn-primary" href="/bot#gallery"><i class="fa-solid fa-images" style="margin-right:6px;"></i>Открыть галерею в Боте</a>
+            <h2>Промокоды</h2>
+            <p class="setting-desc" style="margin-bottom:12px;">Скидка по промокоду применяется клиенту в виджете записи.</p>
+            <div id="promoList" style="margin-bottom:12px"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+                <div class="form-group" style="margin:0; flex:1; min-width:120px;">
+                    <label>Код</label>
+                    <input type="text" id="promoCode" placeholder="ЛЕТО2026" style="text-transform:uppercase">
+                </div>
+                <div class="form-group" style="margin:0; width:90px;">
+                    <label>Скидка %</label>
+                    <input type="text" id="promoPercent" placeholder="10">
+                </div>
+                <div class="form-group" style="margin:0; width:90px;">
+                    <label>Лимит</label>
+                    <input type="text" id="promoMaxUses" placeholder="0 = ∞">
+                </div>
+                <div class="form-group" style="margin:0; width:130px;">
+                    <label>До (ГГГГ-ММ-ДД)</label>
+                    <input type="text" id="promoExpires" placeholder="2026-12-31">
+                </div>
+                <button class="btn btn-primary" onclick="addPromo()">Добавить</button>
+            </div>
+        </div>
+
+        <!-- История действий -->
+        <div class="card">
+            <h2>История действий</h2>
+            <p class="setting-desc" style="margin-bottom:12px;">Журнал изменений в ЦРМ: кто и что менял (последние 100 записей).</p>
+            <div id="auditList"></div>
+            <button class="btn btn-outline" style="margin-top:10px" onclick="loadAudit()"><i class="fa-solid fa-rotate" style="margin-right:6px;"></i>Обновить</button>
         </div>
     </div><!-- /main-content -->
     <div class="saved" id="saved"><i class="fa-solid fa-check" style="margin-right:6px;"></i>Сохранено</div>
@@ -176,6 +232,205 @@
             el.style.display = 'block';
             setTimeout(function() { el.style.display = 'none'; }, 2000);
         }
+
+        function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+        // ── Галерея работ (перенесена со страницы «Бот») ──
+        var cats = [];
+
+        async function loadCats() {
+            try {
+                var resp = await fetch('/api/settings/works-categories', { credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('bad response');
+                cats = await resp.json();
+                var sel = document.getElementById('galleryCat');
+                var cur = sel.value;
+                sel.innerHTML = cats.map(function(c) {
+                    return '<option value="' + esc(c.folder) + '">' + esc(c.label) + '</option>';
+                }).join('');
+                if (cur) sel.value = cur;
+                loadGallery();
+            } catch (e) {}
+        }
+
+        async function addCategory() {
+            var label = document.getElementById('newCatLabel').value.trim();
+            var folder = document.getElementById('newCatFolder').value.trim();
+            if (!label || !folder) { alert('Заполните название и имя папки'); return; }
+            cats.push({ label: label, folder: folder });
+            try {
+                var resp = await fetch('/api/settings/works-categories', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ categories: cats })
+                });
+                if (!resp.ok) throw new Error('Ошибка сохранения');
+                document.getElementById('newCatLabel').value = '';
+                document.getElementById('newCatFolder').value = '';
+                showSaved();
+                loadCats();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function loadGallery() {
+            var cat = document.getElementById('galleryCat').value;
+            try {
+                var resp = await fetch('/api/settings/works-photos', { credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('bad response');
+                var photos = await resp.json();
+                var list = photos.filter(function(p) {
+                    if (!cat) return p.name.indexOf('/') === -1;
+                    return p.name.indexOf(cat + '/') === 0;
+                });
+                var el = document.getElementById('galleryList');
+                el.innerHTML = list.map(function(p) {
+                    return '<div class="photo-cell"><img src="' + p.url + '?t=' + Date.now() + '" alt="">' +
+                        '<button class="del" onclick="delPhoto(\'' + p.name.replace(/'/g, "\\'") + '\')">×</button></div>';
+                }).join('') || '<div class="hint">Нет фото</div>';
+            } catch (e) {}
+        }
+
+        async function uploadGallery(input) {
+            var cat = document.getElementById('galleryCat').value || '';
+            var files = Array.prototype.slice.call(input.files || []);
+            for (var i = 0; i < files.length; i++) {
+                var form = new FormData();
+                form.append('file', files[i]);
+                form.append('category', cat);
+                try {
+                    var resp = await fetch('/api/settings/works-photo', { method: 'POST', credentials: 'same-origin', body: form });
+                    if (!resp.ok) {
+                        var err = await resp.json().catch(function() { return {}; });
+                        throw new Error(err.detail || 'Ошибка загрузки');
+                    }
+                } catch (e) {
+                    alert(e.message);
+                    break;
+                }
+            }
+            input.value = '';
+            showSaved();
+            loadGallery();
+        }
+
+        async function delPhoto(name) {
+            if (!confirm('Удалить фото?')) return;
+            try {
+                var resp = await fetch('/api/settings/works-photo/' + encodeURIComponent(name), { method: 'DELETE', credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('Ошибка удаления');
+                loadGallery();
+            } catch (e) { alert(e.message); }
+        }
+
+        // ── Промокоды ──
+        async function loadPromo() {
+            var el = document.getElementById('promoList');
+            try {
+                var resp = await fetch('/api/promo', { credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('bad');
+                var rows = (await resp.json()).filter(function(p) { return p.active; });
+                if (!rows.length) {
+                    el.innerHTML = '<div class="setting-desc">Промокодов пока нет.</div>';
+                    return;
+                }
+                el.innerHTML = '<table class="crm-table" style="font-size:13px"><thead><tr>' +
+                    '<th>Код</th><th>Скидка</th><th>Лимит</th><th>Использовано</th><th>До</th><th></th>' +
+                    '</tr></thead><tbody>' +
+                    rows.map(function(p) {
+                        return '<tr>' +
+                            '<td style="font-weight:700">' + esc(p.code) + '</td>' +
+                            '<td>' + (p.percent || 0) + '%</td>' +
+                            '<td>' + (p.max_uses ? p.max_uses : '∞') + '</td>' +
+                            '<td>' + (p.used || 0) + '</td>' +
+                            '<td>' + esc(p.expires_at || '—') + '</td>' +
+                            '<td><button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="delPromo(\'' + esc(p.code) + '\')">✕</button></td>' +
+                            '</tr>';
+                    }).join('') + '</tbody></table>';
+            } catch (e) {
+                el.innerHTML = '<div class="setting-desc">Не удалось загрузить промокоды.</div>';
+            }
+        }
+
+        async function addPromo() {
+            var code = document.getElementById('promoCode').value.trim();
+            var percent = parseInt(document.getElementById('promoPercent').value, 10);
+            var maxUses = parseInt(document.getElementById('promoMaxUses').value, 10);
+            var expires = document.getElementById('promoExpires').value.trim();
+            if (!code) { alert('Введите код'); return; }
+            if (isNaN(percent) || percent < 0 || percent > 100) { alert('Скидка: 0–100'); return; }
+            try {
+                var resp = await fetch('/api/promo', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        code: code,
+                        percent: percent,
+                        max_uses: isNaN(maxUses) ? 0 : maxUses,
+                        expires_at: expires,
+                    })
+                });
+                if (!resp.ok) {
+                    var err = await resp.json().catch(function() { return {}; });
+                    alert(err.detail || 'Ошибка сохранения');
+                    return;
+                }
+                document.getElementById('promoCode').value = '';
+                document.getElementById('promoPercent').value = '';
+                document.getElementById('promoMaxUses').value = '';
+                document.getElementById('promoExpires').value = '';
+                showSaved();
+                loadPromo();
+            } catch (e) { alert('Ошибка сети'); }
+        }
+
+        async function delPromo(code) {
+            if (!confirm('Удалить промокод "' + code + '"?')) return;
+            try {
+                var resp = await fetch('/api/promo/' + encodeURIComponent(code), { method: 'DELETE', credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('bad');
+                loadPromo();
+            } catch (e) { alert('Ошибка удаления'); }
+        }
+
+        // ── Журнал аудита ──
+        var AUDIT_ACTIONS = {
+            promo_create: 'Создан промокод',
+            promo_delete: 'Удалён промокод',
+            client_tags: 'Изменены теги клиента',
+            clients_import: 'Импорт клиентов',
+        };
+
+        async function loadAudit() {
+            var el = document.getElementById('auditList');
+            try {
+                var resp = await fetch('/api/audit?limit=100', { credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('bad');
+                var rows = await resp.json();
+                if (!rows.length) {
+                    el.innerHTML = '<div class="setting-desc">Журнал пуст.</div>';
+                    return;
+                }
+                el.innerHTML = '<div style="max-height:320px;overflow-y:auto;border:1px solid rgba(60,60,67,0.18);border-radius:10px">' +
+                    rows.map(function(r) {
+                        var when = (r.created_at || '').replace('T', ' ').slice(0, 16);
+                        var what = AUDIT_ACTIONS[r.action] || r.action;
+                        return '<div style="display:flex;gap:10px;padding:8px 12px;border-bottom:0.5px solid rgba(60,60,67,0.12);font-size:13px;align-items:baseline">' +
+                            '<span style="color:var(--text-muted);white-space:nowrap;min-width:105px">' + esc(when) + '</span>' +
+                            '<span style="font-weight:600">' + esc(what) + '</span>' +
+                            '<span style="color:var(--text-muted)">' + esc((r.entity || '') + (r.entity_id ? ' #' + r.entity_id : '')) + '</span>' +
+                            (r.detail ? '<span style="color:var(--text-light);font-size:12px">' + esc(r.detail) + '</span>' : '') +
+                            '</div>';
+                    }).join('') + '</div>';
+            } catch (e) {
+                el.innerHTML = '<div class="setting-desc">Не удалось загрузить журнал.</div>';
+            }
+        }
+
+        loadCats();
+        loadPromo();
+        loadAudit();
 
         async function saveSalonName() {
             var name = document.getElementById('salonNameInput').value.trim();

@@ -34,6 +34,16 @@
     html:not(.light-theme) .schedule-table tr.row-dayoff .master-col {
       background: rgba(255,255,255,0.04) !important;
     }
+    /* Виртуальная строка: имя из брони бота, профиля мастера нет */
+    .schedule-table tr.row-virtual .master-col {
+      background: rgba(255,149,0,0.08) !important;
+      color: #b25f00 !important;
+      font-style: italic;
+    }
+    html:not(.light-theme) .schedule-table tr.row-virtual .master-col {
+      background: rgba(255,149,0,0.12) !important;
+      color: #ffb340 !important;
+    }
 
   </style>
 </head>
@@ -334,7 +344,7 @@ function renderTable() {
     const isDayOff = !m._virtual && !!dayOffMap[m.name];
     const rowCls = isDayOff ? ' class="row-dayoff"' : '';
     if (m._virtual) {
-      bodyHtml += `<tr><td class="master-col">${m.name}</td>`;
+      bodyHtml += `<tr class="row-virtual"><td class="master-col" title="Имя из брони бота — профиля мастера нет, строка только для просмотра"><i class="fa-solid fa-robot" style="margin-right:4px;opacity:.7;font-size:11px"></i>${m.name} <span style="font-size:10px;font-weight:400;opacity:.75">· из бота, нет профиля</span></td>`;
     } else {
       bodyHtml += `<tr${rowCls}><td class="master-col" style="cursor:pointer" onclick="openMasterScheduleModal('${m.name}')">${m.name} ⚙️${isDayOff ? ' · выходной' : ''}</td>`;
     }

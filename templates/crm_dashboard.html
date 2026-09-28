@@ -73,6 +73,7 @@
           <th>Мастер</th>
           <th>Услуга</th>
           <th>Статус</th>
+          <th>Действия</th>
         </tr>
       </thead>
       <tbody id="bookingsBody"></tbody>
@@ -206,6 +207,10 @@ async function loadDashboard() {
         <td>${esc(b.master_name) || '—'}</td>
         <td>${esc(b.service_name) || '—'}</td>
         <td>${bookingStatus(b)}</td>
+        <td style="white-space:nowrap">
+          ${!b.cancelled && !b.completed && !b.confirmed ? `<button class="btn btn-info btn-sm" style="padding:3px 8px;margin-right:4px" title="Подтвердить" onclick="confirmRecent(${b.id})"><i class="fa-solid fa-check"></i></button>` : ''}
+          ${!b.cancelled && !b.completed ? `<button class="btn btn-danger btn-sm" style="padding:3px 8px" title="Отменить" onclick="cancelRecent(${b.id})"><i class="fa-solid fa-xmark"></i></button>` : ''}
+        </td>
       </tr>
     `).join('');
 
@@ -235,55 +240,26 @@ async function loadDashboard() {
 
 loadDashboard();
 
-function openBroadcastLost() {
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.id = 'bcModal';
-  modal.style.display = 'flex';
-  modal.onclick = function(e) { if (e.target === this) this.remove(); };
-  modal.innerHTML = `
-    <div class="modal" style="max-width:500px">
-      <div class="modal-header">
-        <h3>📨 Рассылка потерянным клиентам</h3>
-        <button class="btn btn-outline btn-icon btn-sm" onclick="this.closest('.modal-overlay').remove()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Текст сообщения</label>
-          <textarea id="bcTextLost" rows="5" placeholder="Введите текст..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;resize:vertical"></textarea>
-        </div>
-        <div id="bcResultLost" style="margin-top:12px"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Отмена</button>
-        <button class="btn btn-primary" onclick="sendBroadcastLost()">📨 Отправить</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
+async function confirmRecent(id) {
+  try {
+    const r = await fetch(`/api/bookings/${id}/confirm`, { method: 'POST' });
+    if (r.ok) loadDashboard();
+    else { const err = await r.json().catch(() => ({})); alert(err.detail || 'Не удалось подтвердить'); }
+  } catch (e) { alert('Ошибка сети'); }
 }
 
-async function sendBroadcastLost() {
-  const text = document.getElementById('bcTextLost').value.trim();
-  if (!text) { alert('Введите текст'); return; }
-  if (!confirm('Отправить сообщение потерянным клиентам?')) return;
-
-  document.getElementById('bcResultLost').innerHTML = '<div style="color:var(--text-light)">⏳ Отправляю...</div>';
+async function cancelRecent(id) {
+  if (!confirm('Отменить запись?')) return;
   try {
-    const resp = await fetch('/api/broadcast', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ segment: 'lost', text }),
-    });
-    const data = await resp.json();
-    if (resp.ok) {
-      document.getElementById('bcResultLost').innerHTML = `<div style="color:var(--primary)">✅ Отправлено: ${data.sent}, ошибок: ${data.failed}</div>`;
-    } else {
-      document.getElementById('bcResultLost').innerHTML = `<div style="color:var(--danger)">❌ ${data.detail || 'Ошибка'}</div>`;
-    }
-  } catch(e) {
-    document.getElementById('bcResultLost').innerHTML = `<div style="color:var(--danger)">❌ Ошибка сети</div>`;
-  }
+    const r = await fetch(`/api/bookings/${id}/cancel`, { method: 'POST' });
+    if (r.ok) loadDashboard();
+    else { const err = await r.json().catch(() => ({})); alert(err.detail || 'Не удалось отменить'); }
+  } catch (e) { alert('Ошибка сети'); }
+}
+
+function openBroadcastLost() {
+  // Каноническая модалка рассылки живёт на /clients — открываем её с сегментом «Потерянные»
+  window.location.href = '/clients?broadcast=lost';
 }
 </script>
 

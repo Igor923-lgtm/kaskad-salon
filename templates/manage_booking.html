@@ -14,12 +14,34 @@
   </div>
   <div style="display:flex;gap:8px;margin-top:16px">
     <button class="btn btn-outline" style="flex:1" id="btnCancel" onclick="cancelBooking()">Отменить запись</button>
-    <a class="btn btn-primary" style="flex:1;text-align:center" href="/widget">Перенести</a>
+    <button class="btn btn-primary" style="flex:1" onclick="openReschedule()">Перенести</button>
   </div>
   <p style="font-size:12px;color:var(--text-light);margin-top:12px">
-    Отмена/перенос — не позднее чем за 2 часа. Для переноса выберите новое время и сообщите нам в Telegram
-    или используйте бот: «Изменить запись».
+    Отмена/перенос — не позднее чем за 2 часа. Нажмите «Перенести» и выберите новое время —
+    или обратитесь к нам в Telegram / бот: «Изменить запись».
   </p>
+</div>
+
+<!-- Модалка переноса -->
+<div class="modal-overlay" id="rsModal" style="display:none" onclick="if(event.target===this)closeReschedule()">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3>Перенос записи</h3>
+      <button class="btn btn-outline btn-icon btn-sm" onclick="closeReschedule()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Новая дата</label>
+        <input type="date" id="rsDate" onchange="loadRsSlots()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <div id="rsSlots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:8px"></div>
+      <div id="rsResult" style="margin-top:10px;font-size:13px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeReschedule()">Отмена</button>
+      <button class="btn btn-primary" id="rsConfirmBtn" onclick="confirmReschedule()" disabled>Перенести</button>
+    </div>
+  </div>
 </div>
 <script>
 function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
@@ -35,6 +57,7 @@ async function load() {
       return;
     }
     const b = await r.json();
+    rsBooking = b;
     const dur = b.duration_minutes || 0;
     const n = dur > 0 ? Math.ceil(dur / 15) : 1;
     let [h, m] = (b.time || '00:00').split(':').map(Number);
@@ -69,6 +92,83 @@ async function cancelBooking() {
     }
   } catch (e) {
     alert('Ошибка сети');
+  }
+}
+
+// ── Перенос ──
+let rsBooking = null;
+let rsSelected = null;
+
+function openReschedule() {
+  if (!rsBooking) return;
+  rsSelected = null;
+  document.getElementById('rsConfirmBtn').disabled = true;
+  document.getElementById('rsResult').innerHTML = '';
+  const d = document.getElementById('rsDate');
+  d.min = new Date().toISOString().split('T')[0];
+  d.value = rsBooking.date >= d.min ? rsBooking.date : d.min;
+  document.getElementById('rsModal').style.display = 'flex';
+  loadRsSlots();
+}
+
+function closeReschedule() {
+  document.getElementById('rsModal').style.display = 'none';
+}
+
+async function loadRsSlots() {
+  const date = document.getElementById('rsDate').value;
+  const grid = document.getElementById('rsSlots');
+  rsSelected = null;
+  document.getElementById('rsConfirmBtn').disabled = true;
+  if (!date) { grid.innerHTML = ''; return; }
+  grid.innerHTML = '<div style="color:var(--text-light);font-size:13px;grid-column:1/-1">Загрузка…</div>';
+  try {
+    const dur = rsBooking.duration_minutes || 0;
+    const r = await fetch(`/api/slots?master_name=${encodeURIComponent(rsBooking.master_name)}&date=${encodeURIComponent(date)}&duration_minutes=${dur}`);
+    const slots = await r.json();
+    const free = slots.filter(s => s.available);
+    if (!free.length) {
+      grid.innerHTML = '<div style="color:var(--text-light);font-size:13px;grid-column:1/-1">Нет свободных окон</div>';
+      return;
+    }
+    grid.innerHTML = free.map(s =>
+      `<button type="button" class="btn btn-outline btn-sm" style="padding:6px 4px;font-size:13px" data-t="${s.time}" onclick="pickRsSlot('${s.time}', this)">${s.time}</button>`
+    ).join('');
+  } catch (e) {
+    grid.innerHTML = '<div style="color:var(--danger);font-size:13px;grid-column:1/-1">Ошибка загрузки</div>';
+  }
+}
+
+function pickRsSlot(t, btn) {
+  rsSelected = t;
+  document.querySelectorAll('#rsSlots button').forEach(b => { b.className = 'btn btn-outline btn-sm'; b.style.padding = '6px 4px'; b.style.fontSize = '13px'; });
+  btn.className = 'btn btn-primary btn-sm';
+  btn.style.padding = '6px 4px';
+  btn.style.fontSize = '13px';
+  document.getElementById('rsConfirmBtn').disabled = false;
+}
+
+async function confirmReschedule() {
+  if (!rsSelected) return;
+  const date = document.getElementById('rsDate').value;
+  if (!confirm(`Перенести запись на ${date} ${rsSelected}?`)) return;
+  document.getElementById('rsResult').innerHTML = '<span style="color:var(--text-light)">Переношу…</span>';
+  try {
+    const r = await fetch(`/api/bookings/manage/${bid}/reschedule?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ date, time: rsSelected }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (r.ok) {
+      closeReschedule();
+      await load();
+      alert(`Запись перенесена на ${body.date} ${body.time}`);
+    } else {
+      document.getElementById('rsResult').innerHTML = `<span style="color:var(--danger)">${esc(body.detail || 'Не удалось перенести')}</span>`;
+    }
+  } catch (e) {
+    document.getElementById('rsResult').innerHTML = '<span style="color:var(--danger)">Ошибка сети</span>';
   }
 }
 

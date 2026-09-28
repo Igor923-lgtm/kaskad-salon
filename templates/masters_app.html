@@ -97,7 +97,7 @@
     <div style="overflow-x:auto;">
       <table class="table" id="mastersTable">
         <thead>
-          <tr><th>Имя</th><th>Вход</th><th>Права</th></tr>
+          <tr><th>Имя</th><th>Вход</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -230,38 +230,21 @@ async function loadMasters() {
   try {
     var masters = await api('/api/masters');
     var tb = document.querySelector('#mastersTable tbody');
-    var rows = await Promise.all((masters || []).map(async function(m) {
-      var perms = {};
-      try { perms = await api('/api/masters/permissions/' + m.id); } catch (e) {}
+    var rows = (masters || []).map(function(m) {
       var active = m.is_active !== 0;
       return '<tr data-id="' + m.id + '">' +
         '<td>' + esc(m.name) + '</td>' +
         '<td><label class="toggle"><input type="checkbox"' + (active ? ' checked' : '') +
           ' onchange="toggleMaster(' + m.id + ', this.checked)"><span class="slider"></span></label></td>' +
-        '<td><select class="mini" onchange="savePermQuick(' + m.id + ', this.value)">' +
-          ['own', 'all', 'none'].map(function(v) {
-            return '<option value="' + v + '"' + (perms.view_clients === v ? ' selected' : '') + '>' +
-              (v === 'own' ? 'Только свои' : v === 'all' ? 'Все' : 'Нет доступа') + '</option>';
-          }).join('') +
-        '</select></td>' +
       '</tr>';
-    }));
-    tb.innerHTML = rows.join('') || '<tr><td colspan="3" style="color:#8E8E93">Нет мастеров</td></tr>';
+    });
+    tb.innerHTML = rows.join('') || '<tr><td colspan="2" style="color:#8E8E93">Нет мастеров</td></tr>';
   } catch (e) { alert(e.message); }
 }
 
 async function toggleMaster(id, enabled) {
   try {
     await api('/api/masters/' + id + '/login', { method: 'PUT', body: { enabled: enabled } });
-    showSaved();
-  } catch (e) { alert(e.message); }
-}
-
-async function savePermQuick(id, view) {
-  try {
-    var perms = await api('/api/masters/permissions/' + id);
-    perms.view_clients = view;
-    await api('/api/masters/permissions/' + id, { method: 'PUT', body: perms });
     showSaved();
   } catch (e) { alert(e.message); }
 }

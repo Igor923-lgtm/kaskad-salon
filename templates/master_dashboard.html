@@ -302,10 +302,9 @@
       <div class="form-group">
         <label>Роль</label>
         <select id="userRoleInput">
-          <option value="master_edit">Мастер (редактирование)</option>
-          <option value="master_view">Мастер (только просмотр)</option>
-          <option value="director">Директор</option>
-          <option value="super_admin">Суперадмин</option>
+          <option value="master_edit">Мастер</option>
+          <option value="director">Администратор</option>
+          <option value="super_admin">Создатель</option>
         </select>
       </div>
     </div>
@@ -2254,6 +2253,7 @@ const ROLE_LABELS = {
   super_admin: 'Создатель',
   director: 'Администратор',
   master_edit: 'Мастер',
+  master_view: 'Мастер (просмотр)',
 };
 
 const ROLE_OPTIONS = [

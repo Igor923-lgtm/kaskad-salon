@@ -333,35 +333,148 @@ async function showDetail(tgId) {
     const dt = c.updated_at ? new Date(c.updated_at.replace(' ','T')).toLocaleDateString('ru-RU') : '—';
 
     let html = `
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin-bottom:16px;font-size:14px;line-height:1.45">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin-bottom:12px;font-size:14px;line-height:1.45">
         <div style="color:var(--text-muted);font-weight:500">Телефон</div>
         <div style="font-weight:600;color:var(--text)">${esc(c.phone || '—')}</div>
         <div style="color:var(--text-muted);font-weight:500">ID в Telegram</div>
         <div style="font-weight:600;color:var(--text)">${c.telegram_id}</div>
         <div style="color:var(--text-muted);font-weight:500">Тип</div>
         <div>${badge}</div>
+        <div style="color:var(--text-muted);font-weight:500">День рождения</div>
+        <div style="font-weight:600;color:var(--text)">${esc(c.birthday || '—')}</div>
         <div style="color:var(--text-muted);font-weight:500">Обновлён</div>
         <div style="font-weight:600;color:var(--text)">${dt}</div>
       </div>
+
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:14px">
+        <input type="text" id="d-birthday" placeholder="ДД.ММ" value="${esc(c.birthday || '')}" style="width:90px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        <button class="btn btn-outline btn-sm" onclick="saveBirthday(${tgId})">Сохранить ДР</button>
+        <span style="font-size:11px;color:var(--text-light)">например 15.03</span>
+      </div>
+
+      <h4 style="margin:0 0 8px;font-size:15px;font-weight:700;color:var(--text)">Теги</h4>
+      <div id="d-tags" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px"></div>
+
+      <h4 style="margin:0 0 8px;font-size:15px;font-weight:700;color:var(--text)">Заметки</h4>
+      <div id="d-notes" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:16px">
+        <input type="text" id="d-note-input" placeholder="Новая заметка…" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px" onkeydown="if(event.key==='Enter')addNote(${tgId})">
+        <button class="btn btn-outline btn-sm" onclick="addNote(${tgId})">Добавить</button>
+      </div>
+
       <h4 style="margin:0 0 8px;font-size:15px;font-weight:700;color:var(--text)">История визитов</h4>
     `;
+    body.innerHTML = html;
+    loadTags(tgId);
+    loadNotes(tgId);
 
     const histResp = await fetch('/api/clients/' + tgId + '/history');
     const history = await histResp.json();
     if (!history.length) {
-      html += '<div style="color:var(--text-muted);font-size:14px;font-weight:500">Нет визитов</div>';
+      body.insertAdjacentHTML('beforeend', '<div style="color:var(--text-muted);font-size:14px;font-weight:500">Нет визитов</div>');
     } else {
-      html += `<table class="crm-table" style="font-size:13px"><thead><tr><th>Дата</th><th>Время</th><th>Мастер</th><th>Услуга</th><th>Статус</th></tr></thead><tbody>`;
+      let h = `<table class="crm-table" style="font-size:13px"><thead><tr><th>Дата</th><th>Время</th><th>Мастер</th><th>Услуга</th><th>Статус</th></tr></thead><tbody>`;
       history.forEach(b => {
         const st = b.confirmed ? '<span class="badge badge-confirmed"><i class="fa-solid fa-check"></i></span>' : '<span class="badge badge-new"><i class="fa-solid fa-clock"></i></span>';
-        html += `<tr><td>${b.date||'—'}</td><td>${b.time||'—'}</td><td>${esc(b.master_name||'—')}</td><td>${esc(b.service_name||'—')}</td><td>${st}</td></tr>`;
+        h += `<tr><td>${b.date||'—'}</td><td>${b.time||'—'}</td><td>${esc(b.master_name||'—')}</td><td>${esc(b.service_name||'—')}</td><td>${st}</td></tr>`;
       });
-      html += '</tbody></table>';
+      h += '</tbody></table>';
+      body.insertAdjacentHTML('beforeend', h);
     }
-    body.innerHTML = html;
   } catch(e) {
     body.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center">Ошибка загрузки</div>';
   }
+}
+
+// ── ДР / теги / заметки (API уже существовал, UI добавлен) ──
+async function saveBirthday(tgId) {
+  const v = document.getElementById('d-birthday').value.trim();
+  if (v && !/^\d{2}\.\d{2}$/.test(v)) { alert('Формат: ДД.ММ, например 15.03'); return; }
+  const r = await fetch('/api/clients/' + tgId + '/birthday', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ birthday: v }),
+  });
+  if (r.ok) showDetail(tgId);
+  else alert('Не удалось сохранить');
+}
+
+async function loadTags(tgId) {
+  const el = document.getElementById('d-tags');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/clients/tags/' + encodeURIComponent(String(tgId)));
+    const data = await r.json();
+    const tags = data.tags || [];
+    el.innerHTML = tags.map(t => `
+      <span class="badge" style="display:inline-flex;align-items:center;gap:5px">
+        ${esc(t)}
+        <button data-tag="${esc(t)}" onclick="removeTagFromClient(${tgId}, this)" style="background:none;border:none;color:inherit;cursor:pointer;font-size:12px;line-height:1;padding:0" title="Убрать тег">×</button>
+      </span>`).join('')
+      + `<input type="text" id="d-tag-input" placeholder="+ тег" style="width:90px;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px" onkeydown="if(event.key==='Enter')addTag(${tgId})">`;
+  } catch (e) { el.innerHTML = ''; }
+}
+
+async function addTag(tgId) {
+  const inp = document.getElementById('d-tag-input');
+  const tag = ((inp && inp.value) || '').trim();
+  if (!tag) return;
+  try {
+    const r = await fetch('/api/clients/tags/' + encodeURIComponent(String(tgId)));
+    const data = await r.json();
+    const tags = (data.tags || []).slice();
+    if (!tags.includes(tag)) tags.push(tag);
+    await fetch('/api/clients/tags/' + encodeURIComponent(String(tgId)), {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ tags }),
+    });
+    loadTags(tgId);
+  } catch (e) { alert('Ошибка сети'); }
+}
+
+async function removeTagFromClient(tgId, btn) {
+  const tag = btn.dataset.tag;
+  try {
+    const r = await fetch('/api/clients/tags/' + encodeURIComponent(String(tgId)));
+    const data = await r.json();
+    const tags = (data.tags || []).filter(t => t !== tag);
+    await fetch('/api/clients/tags/' + encodeURIComponent(String(tgId)), {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ tags }),
+    });
+    loadTags(tgId);
+  } catch (e) { alert('Ошибка сети'); }
+}
+
+async function loadNotes(tgId) {
+  const el = document.getElementById('d-notes');
+  if (!el) return;
+  try {
+    const r = await fetch('/api/clients/' + tgId + '/notes');
+    const notes = await r.json();
+    el.innerHTML = notes.length ? notes.map(n => `
+      <div style="border-left:2px solid var(--border);padding:4px 8px;margin-bottom:6px;font-size:13px">
+        ${esc(n.text)}
+        <div style="font-size:11px;color:var(--text-light)">${esc(n.author || '')}${n.created_at ? ' · ' + esc(String(n.created_at).replace('T', ' ')) : ''}</div>
+      </div>`).join('') : '<div style="font-size:13px;color:var(--text-light)">Заметок нет</div>';
+  } catch (e) { el.innerHTML = ''; }
+}
+
+async function addNote(tgId) {
+  const inp = document.getElementById('d-note-input');
+  const text = ((inp && inp.value) || '').trim();
+  if (!text) return;
+  try {
+    const r = await fetch('/api/clients/' + tgId + '/notes', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text, author: 'ЦРМ' }),
+    });
+    if (r.ok) { inp.value = ''; loadNotes(tgId); }
+    else alert('Не удалось добавить заметку');
+  } catch (e) { alert('Ошибка сети'); }
 }
 
 function closeDetail() {
@@ -377,6 +490,16 @@ document.getElementById('search').addEventListener('input', (e) => {
 
 loadStats();
 loadClients('all');
+
+// Переход с дашборда: /clients?broadcast=lost — открываем каноническую модалку с сегментом
+(function() {
+  const bcParam = new URLSearchParams(window.location.search).get('broadcast');
+  if (bcParam) {
+    openBroadcast();
+    document.getElementById('bcSegment').value = bcParam;
+    loadBroadcastClients();
+  }
+})();
 
 let bcClients = [];
 

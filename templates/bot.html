@@ -36,10 +36,6 @@
     .status-dot.off { background: #FF3B30; }
     .menu-row { display: grid; grid-template-columns: 40px 1fr 120px 1fr 90px 70px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 0.5px solid rgba(60,60,67,0.18); }
     .menu-row input, .menu-row select { width: 100%; padding: 7px 8px; border-radius: 8px; border: 1px solid rgba(60,60,67,0.24); background: #fff; color: var(--text); font-size: 13px; }
-    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; }
-    .photo-cell { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #F2F2F7; }
-    .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
-    .photo-cell .del { position: absolute; top: 4px; right: 4px; background: rgba(255,59,48,0.9); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; }
     .saved { position: fixed; bottom: 20px; right: 20px; background: #34C759; color: #fff; padding: 12px 24px; border-radius: 12px; display: none; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 100; }
     .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(0,122,255,0.12); color: #007AFF; }
     .section-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -62,7 +58,6 @@
     <a href="#status" class="active">Статус</a>
     <a href="#start">Приветствие /start</a>
     <a href="#menu">Кнопки меню</a>
-    <a href="#gallery">Галерея работ</a>
     <a href="#notify">Оповещения</a>
     <a href="#admins">Админы</a>
   </div>
@@ -120,29 +115,6 @@
       <button class="btn btn-ghost" onclick="saveAllMenu()">Сохранить всё</button>
     </div>
     <div class="hint">Изменения применяются к боту сразу после сохранения (меню читается из БД).</div>
-  </div>
-
-  <!-- Галерея -->
-  <div class="card" id="gallery">
-    <h2>Галерея работ (до 15 фото в категории)</h2>
-    <div class="form-group">
-      <label>Категория</label>
-      <select id="galleryCat" onchange="loadGallery()"></select>
-    </div>
-    <div class="photo-grid" id="galleryList"></div>
-    <div class="form-group">
-      <label>Новая категория (папка)</label>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="newCatLabel" placeholder="Название (🔽 …)" style="flex:1">
-        <input type="text" id="newCatFolder" placeholder="имя_папки" style="flex:1">
-        <button class="btn btn-ghost" onclick="addCategory()">Добавить</button>
-      </div>
-    </div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn btn-primary" onclick="document.getElementById('galleryFile').click()"><i class="fa-solid fa-camera" style="margin-right:6px;"></i>Загрузить фото</button>
-      <input type="file" id="galleryFile" accept="image/*" multiple style="display:none" onchange="uploadGallery(this)">
-    </div>
-    <div class="hint">Максимум 15 фото в одной категории.</div>
   </div>
 
   <!-- Оповещения -->
@@ -377,79 +349,6 @@ async function loadMenu() {
   } catch (e) { alert(e.message); }
 }
 
-/* ── Gallery ── */
-var cats = [];
-
-async function loadCats() {
-  try {
-    cats = await api('/api/settings/works-categories');
-    var sel = document.getElementById('galleryCat');
-    var cur = sel.value;
-    sel.innerHTML = cats.map(function(c) {
-      return '<option value="' + esc(c.folder) + '">' + esc(c.label) + '</option>';
-    }).join('');
-    if (cur) sel.value = cur;
-    loadGallery();
-  } catch (e) {}
-}
-
-async function addCategory() {
-  var label = document.getElementById('newCatLabel').value.trim();
-  var folder = document.getElementById('newCatFolder').value.trim();
-  if (!label || !folder) { alert('Заполните название и имя папки'); return; }
-  cats.push({ label: label, folder: folder });
-  try {
-    await api('/api/settings/works-categories', { method: 'PUT', body: { categories: cats } });
-    document.getElementById('newCatLabel').value = '';
-    document.getElementById('newCatFolder').value = '';
-    showSaved();
-    loadCats();
-  } catch (e) { alert(e.message); }
-}
-
-async function loadGallery() {
-  var cat = document.getElementById('galleryCat').value;
-  try {
-    var photos = await api('/api/settings/works-photos');
-    var list = photos.filter(function(p) {
-      if (!cat) return p.name.indexOf('/') === -1;
-      return p.name.indexOf(cat + '/') === 0;
-    });
-    var el = document.getElementById('galleryList');
-    el.innerHTML = list.map(function(p) {
-      return '<div class="photo-cell"><img src="' + p.url + '?t=' + Date.now() + '" alt="">' +
-        '<button class="del" onclick="delPhoto(\'' + p.name.replace(/'/g, "\\'") + '\')">×</button></div>';
-    }).join('') || '<div class="hint">Нет фото</div>';
-  } catch (e) {}
-}
-
-async function uploadGallery(input) {
-  var cat = document.getElementById('galleryCat').value || '';
-  var files = Array.prototype.slice.call(input.files || []);
-  for (var i = 0; i < files.length; i++) {
-    var form = new FormData();
-    form.append('file', files[i]);
-    form.append('category', cat);
-    try {
-      await api('/api/settings/works-photo', { method: 'POST', body: form });
-    } catch (e) {
-      alert(e.message);
-      break;
-    }
-  }
-  input.value = '';
-  showSaved();
-  loadGallery();
-}
-
-async function delPhoto(name) {
-  if (!confirm('Удалить фото?')) return;
-  try {
-    await api('/api/settings/works-photo/' + encodeURIComponent(name), { method: 'DELETE' });
-    loadGallery();
-  } catch (e) { alert(e.message); }
-}
-
 /* ── Notifications ── */
 async function loadNotify() {
   try {
@@ -501,7 +400,6 @@ async function saveAdminIds() {
 loadStatus();
 loadWelcome();
 loadMenu();
-loadCats();
 loadNotify();
 </script>
 </body>

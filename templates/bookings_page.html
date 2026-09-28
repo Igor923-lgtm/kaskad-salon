@@ -177,6 +177,7 @@ function renderGroups(groups) {
               <th>Услуга</th>
               <th>Цена</th>
               <th>Статус</th>
+              <th>Действия</th>
             </tr>
           </thead>
           <tbody>
@@ -186,8 +187,13 @@ function renderGroups(groups) {
                 <td>${b.time || '—'}</td>
                 <td>${b.master_name || '—'}</td>
                 <td>${esc(b.service_name) || '—'}</td>
-                <td><span style="cursor:pointer;color:var(--primary)" onclick="editPrice(${b.id}, '${b.price || ''}')">${b.price || '—'}</span></td>
+                <td><span style="cursor:pointer;color:var(--primary)" title="Изменить цену" onclick="editPrice(${b.id}, '${b.price || ''}')">${b.price || '—'}</span></td>
                 <td>${getStatus(b)}</td>
+                <td style="white-space:nowrap">
+                  ${!b.cancelled && !b.completed && !b.confirmed ? `<button class="btn btn-info btn-sm" style="padding:3px 8px;margin-right:4px" title="Подтвердить" onclick="confirmBooking(${b.id})"><i class="fa-solid fa-check"></i></button>` : ''}
+                  ${!b.cancelled && !b.completed ? `<button class="btn btn-danger btn-sm" style="padding:3px 8px;margin-right:4px" title="Отменить" onclick="cancelBooking(${b.id})"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                  <button class="btn btn-outline btn-sm" style="padding:3px 8px" title="Изменить" onclick="editPrice(${b.id}, '${b.price || ''}')"><i class="fa-solid fa-pen"></i></button>
+                </td>
               </tr>
             `).join('')}
           </tbody>
@@ -250,6 +256,41 @@ async function savePrice() {
   closePriceModal();
   loadGroups();
   showSavedToast();
+}
+
+function refreshList() {
+  loadGroups(document.getElementById('searchInput').value.trim());
+}
+
+async function confirmBooking(id) {
+  try {
+    const r = await fetch(`/api/bookings/${id}/confirm`, { method: 'POST' });
+    if (r.ok) {
+      refreshList();
+      showSavedToast();
+    } else {
+      const err = await r.json().catch(() => ({}));
+      alert(err.detail || 'Не удалось подтвердить');
+    }
+  } catch (e) {
+    alert('Ошибка сети');
+  }
+}
+
+async function cancelBooking(id) {
+  if (!confirm('Отменить запись?')) return;
+  try {
+    const r = await fetch(`/api/bookings/${id}/cancel`, { method: 'POST' });
+    if (r.ok) {
+      refreshList();
+      showSavedToast();
+    } else {
+      const err = await r.json().catch(() => ({}));
+      alert(err.detail || 'Не удалось отменить');
+    }
+  } catch (e) {
+    alert('Ошибка сети');
+  }
 }
 </script>
 
