@@ -2096,7 +2096,7 @@ FEATURE_FLAGS = [
     "GALLERY_ENABLED", "MASTERS_ENABLED", "RATING_ENABLED",
     "MY_BOOKINGS_ENABLED", "HISTORY_ENABLED", "BIRTHDAY_ENABLED",
     "CONTACT_ENABLED", "WIDGET_ENABLED", "COWORKING_ENABLED",
-    "ORG_TYPE",
+    "ORG_TYPE", "NAME_BYPASS",
 ]
 
 FLAG_LABELS = {
@@ -2113,6 +2113,7 @@ FLAG_LABELS = {
     "BIRTHDAY_ENABLED": "День рождения",
     "CONTACT_ENABLED": "Контакты салона",
     "WIDGET_ENABLED": "Виджет онлайн-записи",
+    "NAME_BYPASS": "Скрытые права по имени (АДМИН/Суперадмин)",
 }
 
 

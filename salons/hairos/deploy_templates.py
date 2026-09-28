@@ -18,7 +18,6 @@ files = [
     'master_login.html',
     'clients_page.html',
     'crm_dashboard.html',
-    'book.html',
     'bookings_page.html',
     'login.html',
     'widget.html',

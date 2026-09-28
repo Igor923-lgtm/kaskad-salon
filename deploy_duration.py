@@ -22,7 +22,6 @@ TEMPLATE_FILES = [
     "services_page.html",
     "master_dashboard.html",
     "schedule.html",
-    "book.html",
     "widget.html",
 ]
 SERVICES = ["kaskad", "hairos"]

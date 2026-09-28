@@ -113,13 +113,10 @@ _PUBLIC_GET_PATHS = {
     "/health",
     "/login",
     "/widget",
-    "/book",
     "/api/slots",
     "/api/services",
     "/api/masters",
     "/api/salon-hours",
-    "/api/settings/salon-name",
-    "/api/settings/logo",
 }
 
 
@@ -372,9 +369,18 @@ async def _get_session(token: str) -> dict | None:
         # Обратная совместимость: если role нет — дефолт master_edit
         if "role" not in row:
             row["role"] = "master_edit"
-        # Суперадмин — всегда super_admin (по имени или telegram_id)
-        if row.get("master_name") == "Суперадмин" or row.get("telegram_id") == config.SUPERADMIN_TG_ID:
+        # Суперадмин по конфигу (TG ID из .env) — всегда super_admin
+        if row.get("telegram_id") == config.SUPERADMIN_TG_ID:
             row["role"] = "super_admin"
+        # «Имя = право» («АДМИН»/«Суперадмин») — только при включённом NAME_BYPASS (дефолт: вкл)
+        elif await _name_bypass_enabled():
+            if row.get("master_name") == "АДМИН":
+                row["role"] = "admin"
+            elif row.get("master_name") == "Суперадмин":
+                row["role"] = "super_admin"
+        elif row.get("master_name") in ("АДМИН", "Суперадмин") and not row.get("master_id"):
+            # Флаг выключен: сессии-имён без записи в masters (мастер_id=0) — без скрытых прав
+            row["role"] = "master_edit"
         return row
 
 async def _get_permissions(master_id: int) -> dict:
@@ -397,6 +403,19 @@ def _require_role(session: dict, allowed: list) -> bool:
     """Проверить что роль пользователя в списке разрешённых."""
     role = session.get("role", "master_edit")
     return role in allowed
+
+
+async def _name_bypass_enabled() -> bool:
+    """Флаг NAME_BYPASS: давать ли права по имени сессии («АДМИН»/«Суперадмин»).
+
+    Дефолт — включено (сохраняет поведение существующих инсталляций).
+    """
+    try:
+        import db as db_module
+        flags = await db_module.get_feature_flags()
+        return bool(flags.get("NAME_BYPASS", True))
+    except Exception:
+        return True
 
 async def _get_session_or_crm(token: str | None, request: Request) -> dict | None:
     """Получить сессию по токену ИЛИ по CRM cookie."""
@@ -585,7 +604,9 @@ async def page_master_login(request: Request):
 async def page_master_dashboard(request: Request):
     if not await _master_session_ok(request):
         return RedirectResponse(url="/master", status_code=302)
-    ctx = await _template_context(request, page="dashboard")
+    import db as db_module
+    flags = await db_module.get_feature_flags()
+    ctx = await _template_context(request, page="dashboard", name_bypass=flags.get("NAME_BYPASS", True))
     r = templates.TemplateResponse(request, "master_dashboard.html", ctx)
     _no_cache(r)
     return r
@@ -877,6 +898,12 @@ async def auth_request(req: AuthRequest):
     # Суперадмин по телефону — всегда super_admin
     if phone == config.SUPERADMIN_PHONE:
         role = "super_admin"
+    # Вход по имени-праву («АДМИН» из ADMIN_IDS, «Суперадмин») — при включённом NAME_BYPASS
+    if await _name_bypass_enabled():
+        if master.get("name") == "АДМИН":
+            role = "admin"
+        elif master.get("name") == "Суперадмин":
+            role = "super_admin"
     _sms_codes[phone] = {
         "code": code,
         "expires": datetime.now() + timedelta(minutes=5),
@@ -958,7 +985,7 @@ async def master_today(token: str = Query(...)):
     if not s:
         raise HTTPException(401, "Не авторизован")
     today = datetime.now().strftime("%Y-%m-%d")
-    is_admin = _require_role(s, ["super_admin", "director", "admin"]) or s["master_name"] == "АДМИН"
+    is_admin = _require_role(s, ["super_admin", "director", "admin"])
     async with aiosqlite.connect(config.DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         if is_admin:
@@ -978,7 +1005,7 @@ async def master_week(token: str = Query(...)):
     s = await _get_session(token)
     if not s:
         raise HTTPException(401, "Не авторизован")
-    is_admin = _require_role(s, ["super_admin", "director", "admin"]) or s["master_name"] == "АДМИН"
+    is_admin = _require_role(s, ["super_admin", "director", "admin"])
     today = datetime.now()
     dates = [(today + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
     async with aiosqlite.connect(config.DB_PATH) as db:
@@ -1002,7 +1029,7 @@ async def master_schedule(token: str = Query(...)):
     if not s:
         raise HTTPException(401, "Не авторизован")
     master_name = s["master_name"]
-    is_admin = _require_role(s, ["super_admin", "director", "admin"]) or master_name == "АДМИН"
+    is_admin = _require_role(s, ["super_admin", "director", "admin"])
     today = datetime.now()
     dates = [(today + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
 
@@ -1063,7 +1090,7 @@ async def master_clients(token: str = Query(...), filter: str = Query("active"))
     if not s:
         raise HTTPException(401, "Не авторизован")
     master_name = s["master_name"]
-    is_admin = _require_role(s, ["super_admin", "director", "admin"]) or master_name == "АДМИН"
+    is_admin = _require_role(s, ["super_admin", "director", "admin"])
 
     async with aiosqlite.connect(config.DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -1851,7 +1878,6 @@ async def _authorize_schedule_write(request: Request, master_name: str, token: s
         s = await _get_session(token)
         if s and (
             _require_role(s, ["super_admin", "director", "admin"])
-            or s.get("master_name") == "АДМИН"
             or s.get("master_name") == master_name
         ):
             return
@@ -2062,7 +2088,7 @@ async def admin_date_schedule(
         s = await _get_session(token) if token else None
         if not s:
             raise HTTPException(401, "Не авторизован")
-        if not (_require_role(s, ["super_admin", "director", "admin"]) or s["master_name"] == "АДМИН"):
+        if not _require_role(s, ["super_admin", "director", "admin"]):
             raise HTTPException(403, "Только админ может использовать этот эндпоинт")
     if not body:
         raise HTTPException(400, "Требуется body")
@@ -2084,7 +2110,7 @@ async def admin_get_date_schedule(
         s = await _get_session(token) if token else None
         if not s:
             raise HTTPException(401, "Не авторизован")
-        if not (_require_role(s, ["super_admin", "director", "admin"]) or s["master_name"] == "АДМИН"):
+        if not _require_role(s, ["super_admin", "director", "admin"]):
             raise HTTPException(403, "Только админ")
     import db as db_module
     sched = await db_module.get_date_schedule(master_name, date)
@@ -2224,17 +2250,34 @@ async def analytics_kpi(from_date: str = Query(None), to_date: str = Query(None)
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
             """SELECT id, master_name, date, time, duration_minutes, client_name, phone,
-                      confirmed, completed, cancelled, price
+                      confirmed, completed, cancelled, price, service_name
                FROM bookings WHERE date >= ? AND date <= ?""",
             (from_date, to_date),
         )
         rows = [dict(r) for r in await cur.fetchall()]
 
-        cur = await db.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE date(created_at) BETWEEN ? AND ?",
-            (from_date, to_date),
-        )
-        revenue = float((await cur.fetchone())[0] or 0)
+        # Выручка = из записей (тот же источник и предикат, что в /api/finance/summary:
+        # cancelled = 0 AND (confirmed = 1 OR completed = 1); цена — первое число из price,
+        # fallback — цена услуги)
+        import re as _re
+        revenue = 0
+        revenue_by_day_map: dict = {}
+        for r in rows:
+            if r.get("cancelled") or not (r.get("confirmed") or r.get("completed")):
+                continue
+            price_str = (r.get("price") or "").strip()
+            if price_str:
+                m = _re.search(r"\d+", price_str)
+                price = int(m.group()) if m else 0
+            else:
+                price = await db_module.get_price_for_service(r.get("service_name") or "")
+            revenue += price
+            day = r.get("date") or ""
+            if day:
+                revenue_by_day_map[day] = revenue_by_day_map.get(day, 0) + price
+        revenue_by_day = [
+            {"date": d, "amount": float(v)} for d, v in sorted(revenue_by_day_map.items())
+        ]
 
         total = len(rows)
         cancelled = sum(1 for r in rows if r.get("cancelled"))
@@ -2288,14 +2331,6 @@ async def analytics_kpi(from_date: str = Query(None), to_date: str = Query(None)
             [{"master": k, "slots": v} for k, v in load.items()],
             key=lambda x: -x["slots"],
         )
-
-        cur = await db.execute(
-            """SELECT date(created_at) as d, COALESCE(SUM(amount),0) as s
-               FROM transactions WHERE date(created_at) BETWEEN ? AND ?
-               GROUP BY d ORDER BY d""",
-            (from_date, to_date),
-        )
-        revenue_by_day = [{"date": r[0], "amount": float(r[1] or 0)} for r in await cur.fetchall()]
 
         return {
             "from_date": from_date,

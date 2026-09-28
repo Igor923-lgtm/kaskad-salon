@@ -90,7 +90,6 @@
 
   <!-- Контент вкладок -->
   <div id="viewToday"></div>
-  <div id="viewWeek" style="display:none"></div>
   <div id="viewSchedule" style="display:none"></div>
   <div id="viewClients" style="display:none"></div>
   <div id="viewFinance" style="display:none"></div>
@@ -340,6 +339,8 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().t
 const token = localStorage.getItem('master_token');
 const masterName = localStorage.getItem('master_name') || '';
 const masterRole = localStorage.getItem('master_role') || 'master_edit';
+// Флаг NAME_BYPASS: работают ли скрытые права по имени (АДМИН/Суперадмин) — приходит из настроек ЦРМ
+const NAME_BYPASS = {{ 'true' if name_bypass else 'false' }};
 
 if (!token || !masterName) { localStorage.clear(); window.location.href = '/master'; }
 
@@ -352,18 +353,12 @@ document.getElementById('masterName').textContent = masterName;
 
 // Настройка видимости вкладок по роли
 function setupRoleUI() {
-  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterRole === 'admin' || (NAME_BYPASS && masterName === 'АДМИН');
   const isSuperAdmin = masterRole === 'super_admin' || isAdmin;
   const isDirector = masterRole === 'director' || isSuperAdmin;
-  const isViewOnly = masterRole === 'master_view';
 
   const moreUsers = document.getElementById('moreUsers');
   if (moreUsers) moreUsers.style.display = isAdmin ? '' : 'none';
-
-  // master_view — скрываем кнопки редактирования (обрабатывается в render-функциях)
-  if (isViewOnly) {
-    document.body.classList.add('view-only');
-  }
 }
 setupRoleUI();
 
@@ -682,7 +677,7 @@ function renderSchedule() {
   if (!scheduleData) return;
   const el = document.getElementById('viewSchedule');
   const { schedule, bookings, dates } = scheduleData;
-  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterRole === 'admin' || (NAME_BYPASS && masterName === 'АДМИН');
   const today = fmtLocal(new Date());
   const monthsRu = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
 
@@ -914,7 +909,7 @@ async function loadAdminBookings() {
 }
 
 function renderAdminGrid() {
-  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterRole === 'admin' || (NAME_BYPASS && masterName === 'АДМИН');
   const date = window._adminDate;
   const d = new Date(date + 'T00:00:00');
   updateHoursForDate(d);
@@ -1463,7 +1458,7 @@ async function loadMasters() {
 
 function renderMasters() {
   const el = document.getElementById('viewMasters');
-  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterRole === 'admin' || (NAME_BYPASS && masterName === 'АДМИН');
   
   let html = `<div style="padding:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -1605,7 +1600,7 @@ function deleteMaster(id, name) {
 
 // ── Услуги ──────────────────────────────────────────────
 
-const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterRole === 'admin' || (NAME_BYPASS && masterName === 'АДМИН');
 
 async function loadServices() {
   const el = document.getElementById('viewServices');
@@ -1775,7 +1770,7 @@ let broadcastSegment = 'all';
 let broadcastSelected = new Set();
 
 function checkBroadcastAccess() {
-  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterRole === 'admin' || (NAME_BYPASS && masterName === 'АДМИН');
   const bc = document.getElementById('moreBroadcast');
   if (bc) bc.style.display = isAdmin ? '' : 'none';
   // Финансы и Мастера — только для админов
@@ -1957,7 +1952,7 @@ function openCreate(date, time, preselectMaster) {
   document.getElementById('cbPhone').value = '';
 
   // АДМИН: показываем выбор мастера
-  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterRole === 'admin' || (NAME_BYPASS && masterName === 'АДМИН');
   const masterGroup = document.getElementById('cbMasterGroup');
   const masterSelect = document.getElementById('cbMasterSelect');
 
@@ -1982,7 +1977,7 @@ async function submitBooking() {
   const dt = document.getElementById('cbDateTime').value.split(' ');
   const name = document.getElementById('cbName').value.trim();
   const phone = document.getElementById('cbPhone').value.trim();
-  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterName === 'АДМИН';
+  const isAdmin = masterRole === 'super_admin' || masterRole === 'director' || masterRole === 'admin' || (NAME_BYPASS && masterName === 'АДМИН');
   const selectedMaster = isAdmin ? document.getElementById('cbMasterSelect').value : masterName;
 
   if (!name) { showToast('Введите имя клиента', 'error'); return; }
