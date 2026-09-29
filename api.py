@@ -1257,7 +1257,10 @@ async def create_master(m: MasterCreate):
             (m.name, m.specialization, m.description, m.categories, m.phone, org, m.telegram_id or 0),
         )
         await db.commit()
-        await _seed_master_work_week(db, m.name)
+        if org != "coworking":
+            # Модель day-off: в ковopкинге «нет строки = рабочий день» (часы салона),
+            # сид 7×10:00-20:00 только сдвигал часы и плодил фиктивные строки расписания.
+            await _seed_master_work_week(db, m.name)
         return {"id": cur.lastrowid}
 
 @app.put("/api/masters/{master_id}")

@@ -80,7 +80,8 @@ ALLOWED_UPDATES = [
     BOOK_SELECT_START,
     BOOK_SELECT_END,
     WAITLIST,
-) = range(42)
+    BOOK_SELECT_SPACE,
+) = range(43)
 
 
 # ══════════════════════════════════════════════════════════
@@ -802,14 +803,25 @@ async def book_multi_done(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     sec_idx = booking.get("section_idx", 0)
 
     if await _is_coworking_org():
-        booking["master_name"] = _COWORKING_RESOURCE
-        now = datetime.now()
-        text, kb = await _build_calendar_kb(
-            _COWORKING_RESOURCE, now.year, now.month,
-            duration_minutes=booking.get("duration_minutes") or 0,
+        flags = await db.get_feature_flags()
+        spaces = await db.get_masters(org_type=flags.get("ORG_TYPE", "beauty"))
+        if not spaces:
+            # Нет пространств — прежнее поведение на абстрактном ресурсе
+            booking["master_name"] = _COWORKING_RESOURCE
+            now = datetime.now()
+            text, kb = await _build_calendar_kb(
+                _COWORKING_RESOURCE, now.year, now.month,
+                duration_minutes=booking.get("duration_minutes") or 0,
+            )
+            await query.edit_message_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+            return BOOK_SELECT_DATE
+        kb = [[InlineKeyboardButton(f"🪑 {m['name']}", callback_data=f"book_sp_{m['id']}")] for m in spaces]
+        kb.append([InlineKeyboardButton("◀️ Назад", callback_data="book_sp_back")])
+        await query.edit_message_text(
+            f"Выбрано: {booking['service_name']}\nВыберите пространство:",
+            reply_markup=InlineKeyboardMarkup(kb),
         )
-        await query.edit_message_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
-        return BOOK_SELECT_DATE
+        return BOOK_SELECT_SPACE
 
     _flags = await db.get_feature_flags()
     masters = await db.get_masters_by_category(sec_idx, org_type=_flags.get("ORG_TYPE", "beauty"))
@@ -1134,6 +1146,32 @@ async def book_select_master(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text, kb = await _build_calendar_kb(
         ctx.user_data["booking"]["master_name"], now.year, now.month,
         duration_minutes=ctx.user_data["booking"].get("duration_minutes") or 0,
+    )
+    await query.edit_message_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
+    return BOOK_SELECT_DATE
+
+
+async def book_select_space(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Ковopкинг: выбор конкретного пространства после тарифа → календарь."""
+    query = update.callback_query
+    if query.data == "book_sp_back":
+        await query.answer()
+        text, kb = await _booking_sections_kb()
+        await query.edit_message_text(text, reply_markup=kb)
+        return BOOK_SELECT_SERVICE
+    await query.answer()
+    s_id = int(query.data.replace("book_sp_", ""))
+    booking = ctx.user_data.setdefault("booking", {})
+    spaces = await db.get_masters(org_type=(await db.get_feature_flags()).get("ORG_TYPE", "beauty"))
+    space = next((m for m in spaces if m["id"] == s_id), None)
+    if not space:
+        await query.answer("Пространство не найдено", show_alert=True)
+        return BOOK_SELECT_SPACE
+    booking["master_name"] = space["name"]
+    now = datetime.now()
+    text, kb = await _build_calendar_kb(
+        space["name"], now.year, now.month,
+        duration_minutes=booking.get("duration_minutes") or 0,
     )
     await query.edit_message_text(text, reply_markup=kb, parse_mode=ParseMode.MARKDOWN)
     return BOOK_SELECT_DATE
@@ -3926,6 +3964,10 @@ def build_application():
             BOOK_SELECT_MASTER: [
                 CallbackQueryHandler(book_select_master, pattern="^book_m_"),
                 CallbackQueryHandler(cb_book, pattern="^menu_book$"),
+                CallbackQueryHandler(cb_back_main, pattern="^back_main$"),
+            ],
+            BOOK_SELECT_SPACE: [
+                CallbackQueryHandler(book_select_space, pattern="^book_sp_"),
                 CallbackQueryHandler(cb_back_main, pattern="^back_main$"),
             ],
             BOOK_SELECT_DATE: [
