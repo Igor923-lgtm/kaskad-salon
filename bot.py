@@ -1442,7 +1442,6 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     phone = (client_data.get("phone", "") if client_data else "") or "не указан"
 
     master_name = booking.get("master_name", "—")
-    manage_link = ""
 
     # При изменении — удаляем старую запись
     old_booking_info = ""
@@ -1495,19 +1494,6 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                     }
                     for s in svcs
                 ])
-        # self-service manage link (D1)
-        if booking_id and booking_id != 1:
-            try:
-                import hashlib as _hl
-                import hmac as _hm
-                secret = os.getenv("CRM_SECRET", "")
-                if secret:
-                    msg = f"manage:{booking_id}".encode()
-                    tok = _hm.new(secret.encode(), msg, _hl.sha256).hexdigest()[:32]
-                    base_url = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/")
-                    manage_link = f"\n\n🔗 Управление: {base_url}/manage-booking?id={booking_id}&token={tok}"
-            except Exception:
-                manage_link = ""
 
     # Автоподтверждение если запись менее чем за 24 часа
     if booking_id:
@@ -1682,8 +1668,7 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             "✅ *Запись создана!*\n\n"
             f"Время: {success_time}\n"
             "Мы свяжемся с вами для подтверждения.\n"
-            "Спасибо, что выбираете нас!"
-            f"{manage_link}",
+            "Спасибо, что выбираете нас!",
             reply_markup=await main_menu_kb(),
             parse_mode=ParseMode.MARKDOWN,
         )
