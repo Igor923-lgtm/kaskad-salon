@@ -137,6 +137,7 @@
 </div>
 
 <script>
+const IS_COW = '{{ org_type }}' === 'coworking';
 let currentFilter = 'all';
 let searchTimeout = null;
 
@@ -373,7 +374,7 @@ async function showDetail(tgId) {
     if (!history.length) {
       body.insertAdjacentHTML('beforeend', '<div style="color:var(--text-muted);font-size:14px;font-weight:500">Нет визитов</div>');
     } else {
-      let h = `<table class="crm-table" style="font-size:13px"><thead><tr><th>Дата</th><th>Время</th><th>Мастер</th><th>Услуга</th><th>Статус</th></tr></thead><tbody>`;
+      let h = `<table class="crm-table" style="font-size:13px"><thead><tr><th>Дата</th><th>Время</th><th>${IS_COW ? 'Пространство' : 'Мастер'}</th><th>Услуга</th><th>Статус</th></tr></thead><tbody>`;
       history.forEach(b => {
         const st = b.confirmed ? '<span class="badge badge-confirmed"><i class="fa-solid fa-check"></i></span>' : '<span class="badge badge-new"><i class="fa-solid fa-clock"></i></span>';
         h += `<tr><td>${b.date||'—'}</td><td>${b.time||'—'}</td><td>${esc(b.master_name||'—')}</td><td>${esc(b.service_name||'—')}</td><td>${st}</td></tr>`;

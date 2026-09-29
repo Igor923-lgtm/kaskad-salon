@@ -203,7 +203,7 @@ async function loadKpi() {
     if (load.length) {
       const max = load[0].slots || 1;
       document.getElementById('kpiLoad').innerHTML = `
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Загрузка по мастерам (слоты)</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">Загрузка по {{ "пространствам" if org_type == "coworking" else "мастерам" }} (слоты)</div>
         ${load.map(m => `
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
             <div style="min-width:100px;font-size:13px">${m.master}</div>

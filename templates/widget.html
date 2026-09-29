@@ -85,7 +85,7 @@
   <div class="steps" id="wSteps">
     <div class="step active" id="ws1">Пол</div>
     <div class="step" id="ws2">Услуга</div>
-    <div class="step" id="ws3">Мастер</div>
+    <div class="step" id="ws3">{{ "Пространство" if org_type == "coworking" else "Мастер" }}</div>
     <div class="step" id="ws4">Время</div>
     <div class="step" id="ws5">Данные</div>
   </div>
@@ -130,7 +130,7 @@
     <div class="form-group"><label>Промокод (необязательно)</label><input id="bookPromo" placeholder="СКИДКА10"></div>
     <div style="background:var(--card);border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:13px">
       <div><strong>Услуга:</strong> <span id="cService"></span></div>
-      <div><strong>Мастер:</strong> <span id="cMaster"></span></div>
+      <div><strong id="cMasterLabel">{{ "Пространство:" if org_type == "coworking" else "Мастер:" }}</strong> <span id="cMaster"></span></div>
       <div><strong>Дата:</strong> <span id="cDate"></span></div>
       <div><strong>Время:</strong> <span id="cTime"></span></div>
     </div>
@@ -151,6 +151,8 @@
 </div>
 
 <script>
+const IS_COW = '{{ org_type }}' === 'coworking';
+const T_MASTER = IS_COW ? 'Пространство' : 'Мастер';
 let step = 1, services = [], masters = [];
 let selGender = null, selService = null, selMaster = null, selDate = null, selTime = null;
 
@@ -169,13 +171,13 @@ async function init() {
   }
 
   if (!services.length || !masters.length) {
-    document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:var(--text-light)">Услуги или мастера временно недоступны. Попробуйте позже.</p></div>';
+    document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:var(--text-light)">' + (IS_COW ? 'Тарифы или пространства временно недоступны. Попробуйте позже.' : 'Услуги или мастера временно недоступны. Попробуйте позже.') + '</p></div>';
     return;
   }
 
   if (urlMaster) {
     if (!masters.find(m => m.name === urlMaster)) {
-      document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:#FF3B30">Мастер не найден.</p></div>';
+      document.getElementById('widget').innerHTML = '<div style="text-align:center;padding:40px"><p style="color:#FF3B30">' + (IS_COW ? 'Пространство не найдено.' : 'Мастер не найден.') + '</p></div>';
       return;
     }
     selMaster = urlMaster;
@@ -316,7 +318,7 @@ function confirmMultiServices() {
   filtered.forEach(m => {
     html += `<div class="option" onclick="selectMaster('${m.name.replace(/'/g,"\\'")}')">
       <div class="title">${m.name}</div>
-      <div class="title sub">${m.specialization || 'Мастер'}</div>
+      <div class="title sub">${m.specialization || T_MASTER}</div>
     </div>`;
   });
   document.getElementById('masterList').innerHTML = html;
@@ -368,7 +370,7 @@ function selectService(name, price, serviceId) {
   filtered.forEach(m => {
     html += `<div class="option" onclick="selectMaster('${m.name.replace(/'/g,"\\'")}')">
       <div class="title">${m.name}</div>
-      <div class="sub">${m.specialization || 'Мастер'}</div>
+      <div class="sub">${m.specialization || T_MASTER}</div>
     </div>`;
   });
   document.getElementById('masterList').innerHTML = html;
@@ -434,7 +436,7 @@ async function submit() {
     }),
   });
   if (res.ok) {
-    document.getElementById('doneText').textContent = `${selDate} в ${selTime} к мастеру ${selMaster}`;
+    document.getElementById('doneText').textContent = `${selDate} в ${selTime} ${IS_COW ? 'на пространство' : 'к мастеру'} ${selMaster}`;
     setStep(6);
   } else {
     const err = await res.json();

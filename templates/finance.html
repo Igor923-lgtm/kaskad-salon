@@ -51,7 +51,7 @@
   <div class="card" style="margin-top:12px">
     <div class="card-title">Добавить транзакцию</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <input id="txMaster" placeholder="Мастер" style="flex:1;min-width:120px;min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
+      <input id="txMaster" placeholder="{{ "Пространство" if org_type == "coworking" else "Мастер" }}" style="flex:1;min-width:120px;min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
       <input id="txService" placeholder="Услуга" style="flex:1;min-width:120px;min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
       <input id="txAmount" type="number" placeholder="Сумма" style="width:100px;min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
       <select id="txType" style="min-height:36px;padding:0 8px;border:1px solid var(--border);border-radius:8px">
@@ -157,7 +157,7 @@ async function addTransaction() {
   const amount = parseFloat(document.getElementById('txAmount').value);
   const type = document.getElementById('txType').value;
 
-  if (!master || !amount) { alert('Заполните мастера и сумму'); return; }
+  if (!master || !amount) { alert('{{ "Заполните пространство и сумму" if org_type == "coworking" else "Заполните мастера и сумму" }}'); return; }
 
   await fetch('/api/transactions', {
     method: 'POST',

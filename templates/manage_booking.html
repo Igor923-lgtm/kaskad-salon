@@ -66,7 +66,7 @@ async function load() {
     const timeLabel = n > 1 ? `${b.time} – ${end}` : b.time;
     document.getElementById('card').innerHTML = `
       <div style="font-size:15px;font-weight:600;margin-bottom:8px">${esc(b.service_name) || '—'}</div>
-      <div>Мастер: <b>${b.master_name}</b></div>
+      <div>{{ "Пространство" if org_type == "coworking" else "Мастер" }}: <b>${b.master_name}</b></div>
       <div>Дата: <b>${b.date}</b></div>
       <div>Время: <b>${timeLabel}</b></div>
       ${b.price ? `<div>Цена: <b>${b.price}</b>` : ''}

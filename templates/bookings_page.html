@@ -173,7 +173,7 @@ function renderGroups(groups) {
             <tr>
               <th>Дата</th>
               <th>Время</th>
-              <th>Мастер</th>
+              <th>{{ "Пространство" if org_type == "coworking" else "Мастер" }}</th>
               <th>Услуга</th>
               <th>Цена</th>
               <th>Статус</th>

@@ -1591,7 +1591,8 @@ async def create_booking(b: BookingCreate):
         adb.row_factory = aiosqlite.Row
         cur = await adb.execute("SELECT id FROM masters WHERE name = ? AND is_active = 1", (b.master_name,))
         if not await cur.fetchone():
-            raise HTTPException(400, f"Мастер '{b.master_name}' не найден")
+            term = "Пространство" if await _current_org_type() == "coworking" else "Мастер"
+            raise HTTPException(400, f"{term} '{b.master_name}' не найден")
 
     # Валидация: дата не в прошлом
     today = datetime.now().strftime("%Y-%m-%d")
@@ -2926,7 +2927,10 @@ async def finance_export(from_date: str = Query(None), to_date: str = Query(None
 async def page_settings(request: Request):
     import db as db_module
     flags = await db_module.get_feature_flags()
-    labels = db_module.FLAG_LABELS
+    labels = dict(db_module.FLAG_LABELS)
+    if flags.get("ORG_TYPE", "beauty") == "coworking":
+        labels["MASTERS_ENABLED"] = "Раздел «Пространства»"
+        labels["COWORKING_ENABLED"] = "Бронирование для сотрудников"
     salon_name = await db_module.get_setting("salon_name", config.SALON_NAME)
     salon_logo = await db_module.get_setting("salon_logo_path", "/static/logo.png")
     contact = {
@@ -3541,7 +3545,8 @@ async def api_master_login_toggle(master_id: int, request: Request):
         cur = await db.execute("UPDATE masters SET is_active = ? WHERE id = ?", (int(enabled), master_id))
         await db.commit()
         if cur.rowcount == 0:
-            raise HTTPException(404, "Мастер не найден")
+            term = "Пространство" if await _current_org_type() == "coworking" else "Мастер"
+            raise HTTPException(404, f"{term} не найден")
     return {"status": "ok", "scope": "master", "master_id": master_id, "enabled": enabled}
 
 

@@ -49,12 +49,16 @@
   </div>
   <p class="setting-desc" style="margin:0 0 16px;max-width:720px;">
     Здесь всё про людей, которые заходят в приложение: телефоны, роли, входы и сессии.
+    {% if org_type == "coworking" %}
+    Профиль пространства для расписания — в разделе <a href="/masters" style="color:#007AFF;">«Пространства»</a>.
+    {% else %}
     Профиль мастера для расписания — в разделе <a href="/masters" style="color:#007AFF;">«Мастера»</a>.
+    {% endif %}
   </p>
 
   <!-- Как пригласить -->
   <div class="card">
-    <h2>Как пригласить мастера</h2>
+    <h2>{{ "Как пригласить сотрудника" if org_type == "coworking" else "Как пригласить мастера" }}</h2>
     <div class="invite-step"><span class="num">1</span><span>Добавьте сотрудника кнопкой «+ Добавить» — укажите имя и его телефон.</span></div>
     <div class="invite-step"><span class="num">2</span><span>Отправьте ему ссылку на вход:</span></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 10px 32px">
@@ -65,7 +69,7 @@
     <div class="setting" style="margin-top:6px">
       <div>
         <div class="setting-label">Прямые ссылки</div>
-        <div class="setting-desc">Вход для мастеров и их рабочая панель.</div>
+        <div class="setting-desc">{{ "Вход для сотрудников и их рабочая панель." if org_type == "coworking" else "Вход для мастеров и их рабочая панель." }}</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <a href="/master" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">Вход (/master)</a>
@@ -77,7 +81,7 @@
   <!-- Сотрудники -->
   <div class="card">
     <h2>Сотрудники</h2>
-    <div class="hint" style="margin-top:0;margin-bottom:10px;">Роль решает, что человек видит в приложении: Мастер — только своё, Администратор — всё, Создатель — всё + управление людьми.</div>
+    <div class="hint" style="margin-top:0;margin-bottom:10px;">{{ "Роль решает, что человек видит в приложении: Сотрудник — только своё, Администратор — всё, Создатель — всё + управление людьми." if org_type == "coworking" else "Роль решает, что человек видит в приложении: Мастер — только своё, Администратор — всё, Создатель — всё + управление людьми." }}</div>
     <div id="usersList"></div>
   </div>
 
@@ -86,7 +90,7 @@
     <h2>Вход в приложение</h2>
     <div class="setting">
       <div>
-        <div class="setting-label">Мастера могут входить</div>
+        <div class="setting-label">{{ "Сотрудники могут входить" if org_type == "coworking" else "Мастера могут входить" }}</div>
         <div class="setting-desc">Если выключить — новые входы закрыты. Уже вошедшие работают до отзыва сессий.</div>
       </div>
       <label class="toggle">
@@ -153,7 +157,7 @@
       <div class="form-group">
         <label>Роль</label>
         <select id="auRole">
-          <option value="master_edit">Мастер</option>
+          <option value="master_edit">{{ "Сотрудник" if org_type == "coworking" else "Мастер" }}</option>
           <option value="director">Администратор</option>
           <option value="super_admin">Создатель</option>
         </select>
@@ -213,10 +217,10 @@ function copyInviteLink() {
 const ROLE_LABELS = {
   super_admin: 'Создатель',
   director: 'Администратор',
-  master_edit: 'Мастер',
+  master_edit: '{{ "Сотрудник" if org_type == "coworking" else "Мастер" }}',
 };
 const ROLE_OPTIONS = [
-  { value: 'master_edit', label: 'Мастер' },
+  { value: 'master_edit', label: '{{ "Сотрудник" if org_type == "coworking" else "Мастер" }}' },
   { value: 'director', label: 'Администратор' },
   { value: 'super_admin', label: 'Создатель' },
 ];
@@ -337,7 +341,7 @@ async function loadSessions() {
     tb.innerHTML = d.sessions.map(function(s, i) {
       return '<tr>' +
         '<td>' + esc(s.master_name || '—') + '</td>' +
-        '<td><span class="badge">' + (ROLE_LABELS[s.role] || s.role || 'Мастер') + '</span></td>' +
+        '<td><span class="badge">' + (ROLE_LABELS[s.role] || s.role || '{{ "Сотрудник" if org_type == "coworking" else "Мастер" }}') + '</span></td>' +
         '<td>' + esc(s.telegram_id || '—') + '</td>' +
         '<td>' + esc(s.expires || '—') + '</td>' +
         '<td><button class="btn btn-danger" style="padding:4px 10px;font-size:12px;" onclick="revokeOne(' + i + ')">Отозвать</button></td>' +
@@ -380,7 +384,7 @@ async function loadMasters() {
           ' onchange="toggleMaster(' + m.id + ', this.checked)"><span class="slider"></span></label></td>' +
       '</tr>';
     });
-    tb.innerHTML = rows.join('') || '<tr><td colspan="2" style="color:#8E8E93">Мастеров пока нет — добавьте их в разделе «Мастера».</td></tr>';
+    tb.innerHTML = rows.join('') || '<tr><td colspan="2" style="color:#8E8E93">{{ "Сотрудников пока нет — добавьте их в разделе «Пространства»." if org_type == "coworking" else "Мастеров пока нет — добавьте их в разделе «Мастера»." }}</td></tr>';
   } catch (e) { alert(e.message); }
 }
 

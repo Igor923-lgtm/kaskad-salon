@@ -41,7 +41,7 @@
       <a href="/clients" class="btn btn-outline"><i class="fa-solid fa-users" style="margin-right:6px"></i>Арендаторы</a>
       {% else %}
       <a href="/schedule" class="btn btn-primary"><i class="fa-solid fa-calendar-days" style="margin-right:6px"></i>Шахматка</a>
-      <a href="/masters" class="btn btn-outline"><i class="fa-solid fa-user-group" style="margin-right:6px"></i>Мастера</a>
+      <a href="/masters" class="btn btn-outline"><i class="fa-solid fa-user-group" style="margin-right:6px"></i>{{ "Пространства" if org_type == "coworking" else "Мастера" }}</a>
       <a href="/clients" class="btn btn-outline"><i class="fa-solid fa-users" style="margin-right:6px"></i>Клиенты</a>
       {% endif %}
       <a href="/finance" class="btn btn-outline"><i class="fa-solid fa-wallet" style="margin-right:6px"></i>Финансы</a>
@@ -70,7 +70,7 @@
           <th>Дата</th>
           <th>Время</th>
           <th>Клиент</th>
-          <th>Мастер</th>
+          <th>{{ "Пространство" if org_type == "coworking" else "Мастер" }}</th>
           <th>Услуга</th>
           <th>Статус</th>
           <th>Действия</th>
