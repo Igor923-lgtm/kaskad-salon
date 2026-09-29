@@ -1446,10 +1446,12 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     # При изменении — удаляем старую запись
     old_booking_info = ""
+    old_master_name = ""
     if is_edit:
         old = await db.get_booking_by_id(is_edit)
         if old:
             old_booking_info = f"{old.get('master_name', '—')} | {old.get('date', '')} {old.get('time', '')}"
+            old_master_name = old.get("master_name", "") or ""
         await db.cancel_booking(is_edit)
         log.info(f"BOOK EDIT: deleted old booking #{is_edit}")
 
@@ -1553,6 +1555,15 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
     # Уведомляем администратора
     bot = ctx.bot
+    is_coworking = await _is_coworking_org() or master_name == _COWORKING_RESOURCE
+    role_label = "Пространство" if is_coworking else "Мастер"
+    if booking.get("end_time"):
+        time_line = f"{booking.get('start_time', '—')} – {booking.get('end_time', booking.get('time', '—'))}"
+    elif (booking.get("duration_minutes") or 0) > 15:
+        start_t = booking.get("time", "—")
+        time_line = f"{start_t} – {db.end_time_for_booking(start_t, booking['duration_minutes'])} ({db.format_duration(booking['duration_minutes'])})"
+    else:
+        time_line = booking.get("time", "—")
     for admin_id in config.ADMIN_IDS:
         try:
             if is_edit:
@@ -1566,14 +1577,6 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                     parse_mode=ParseMode.MARKDOWN,
                 )
             else:
-                role_label = "Пространство" if (await _is_coworking_org() or master_name == _COWORKING_RESOURCE) else "Мастер"
-                if booking.get("end_time"):
-                    time_line = f"{booking.get('start_time', '—')} – {booking.get('end_time', booking.get('time', '—'))}"
-                elif (booking.get("duration_minutes") or 0) > 15:
-                    start_t = booking.get("time", "—")
-                    time_line = f"{start_t} – {db.end_time_for_booking(start_t, booking['duration_minutes'])} ({db.format_duration(booking['duration_minutes'])})"
-                else:
-                    time_line = booking.get("time", "—")
                 await bot.send_message(
                     admin_id,
                     f"📅 *Новая {'бронь' if role_label == 'Пространство' else 'запись'}!*\n\n"
@@ -1588,6 +1591,49 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
                 )
         except Exception as e:
             log.warning(f"Не удалось уведомить админа {admin_id}: {e}")
+
+    # Уведомляем мастера о новой записи / изменении
+    if not is_coworking:
+        try:
+            tg = await db.resolve_master_tg(master_name, None if phone == "не указан" else phone)
+            if tg:
+                if is_edit:
+                    text = (
+                        f"✏️ *Запись изменена!*\n\n"
+                        f"Клиент: {name}\n"
+                        f"Было: {old_booking_info}\n"
+                        f"Стало: {master_name} | {booking.get('date', '—')} {booking.get('time', '—')}\n"
+                        f"Услуга: {booking.get('service_name', '—')}"
+                    )
+                else:
+                    text = (
+                        f"📋 *Новая запись!*\n\n"
+                        f"Клиент: {name}\n"
+                        f"Телефон: {phone}\n"
+                        f"Дата: {booking.get('date', '—')}\n"
+                        f"Время: {time_line}\n"
+                        f"Услуга: {booking.get('service_name', '—')}"
+                    )
+                await bot.send_message(tg, text, parse_mode=ParseMode.MARKDOWN)
+            else:
+                log.warning(f"BOOK: мастер '{master_name}' без telegram_id — уведомление не отправлено")
+        except Exception as e:
+            log.warning(f"BOOK: не удалось уведомить мастера {master_name}: {e}")
+
+        if is_edit and old_master_name and old_master_name != master_name:
+            try:
+                old_tg = await db.resolve_master_tg(old_master_name)
+                if old_tg:
+                    await bot.send_message(
+                        old_tg,
+                        f"❌ *Запись отменена*\n\n"
+                        f"Клиент: {name}\n"
+                        f"Запись перенесена другому мастеру.\n"
+                        f"Было: {old_booking_info}",
+                        parse_mode=ParseMode.MARKDOWN,
+                    )
+            except Exception as e:
+                log.warning(f"BOOK: не удалось уведомить мастера {old_master_name}: {e}")
 
     # Убираем клавиатуру с контактом и отправляем подтверждение
     chat_id = update.effective_chat.id
@@ -3764,6 +3810,22 @@ async def cb_remind_cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             )
         except Exception:
             pass
+    # Уведомляем мастера
+    try:
+        m_tg = await db.resolve_master_tg(b.get("master_name", ""))
+        if m_tg:
+            await ctx.bot.send_message(
+                m_tg,
+                f"❌ *Запись отменена клиентом*\n\n"
+                f"Клиент: {b.get('client_name', '—')}\n"
+                f"Дата: {b.get('date', '—')}\n"
+                f"Время: {time_line}",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        else:
+            log.warning(f"CONFIRM_CANCEL: мастер '{b.get('master_name')}' без telegram_id — уведомление не отправлено")
+    except Exception as e:
+        log.warning(f"CONFIRM_CANCEL: не удалось уведомить мастера: {e}")
     await query.edit_message_text(
         "❌ Запись отменена.\n"
         "Если захотите записаться снова — я к вашим услугам!",

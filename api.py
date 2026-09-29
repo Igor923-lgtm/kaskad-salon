@@ -484,6 +484,19 @@ async def _get_admin_ids() -> list[int]:
         pass
     return list(config.ADMIN_IDS)
 
+
+async def _notify_admins_text(text: str):
+    """Отправить текст всем админам (с учётом переключателя admin_alert)."""
+    try:
+        import db as db_module
+        ncfg = await db_module.get_notify_config()
+        if not db_module.is_notify_enabled(ncfg, "admin_alert"):
+            return
+        for admin_id in await _get_admin_ids():
+            await _send_tg(admin_id, text)
+    except Exception as e:
+        log.warning(f"Не удалось отправить уведомление админам: {e}")
+
 async def _send_tg(chat_id: int, text: str):
     """Отправить сообщение клиенту через Telegram Bot API."""
     try:
@@ -497,18 +510,15 @@ async def _send_tg(chat_id: int, text: str):
     except Exception as e:
         log.warning(f"Не удалось отправить сообщение в TG {chat_id}: {e}")
 
-async def _notify_master(master_name: str, text: str):
+async def _notify_master(master_name: str, text: str, phone: str | None = None):
     """Отправить уведомление мастеру в Telegram."""
     try:
         import httpx
-        async with aiosqlite.connect(config.DB_PATH) as db:
-            cur = await db.execute(
-                "SELECT telegram_id FROM masters WHERE name = ? AND telegram_id > 0", (master_name,)
-            )
-            row = await cur.fetchone()
-            if not row:
-                return
-            tg_id = row[0]
+        import db as _dbm
+        tg_id = await _dbm.resolve_master_tg(master_name, phone)
+        if not tg_id:
+            log.warning(f"Мастер '{master_name}': нет telegram_id — уведомление не отправлено")
+            return
 
         async with httpx.AsyncClient() as client:
             await client.post(
@@ -747,6 +757,14 @@ async def manage_booking_cancel(booking_id: int, token: str = Query(...)):
                 f"Дата: {booking.get('date','—')}\nВремя: {booking.get('time','—')}\n\n"
                 f"Записывайтесь: /start → Записаться",
             ))
+        asyncio.create_task(_notify_master(
+            booking.get("master_name", ""),
+            f"❌ *Запись отменена клиентом*\n\n"
+            f"Клиент: {booking.get('client_name', '—')}\n"
+            f"Дата: {booking.get('date', '—')}\n"
+            f"Время: {booking.get('time', '—')}",
+            phone=booking.get("phone"),
+        ))
     return {"status": "ok"}
 
 
@@ -787,6 +805,24 @@ async def manage_booking_reschedule(booking_id: int, token: str = Query(...), re
             (new_date, new_time, booking_id),
         )
         await db.commit()
+
+    # Уведомления о переносе: мастеру и админам
+    asyncio.create_task(_notify_master(
+        existing["master_name"],
+        f"🔁 *Запись перенесена*\n\n"
+        f"Клиент: {existing.get('client_name', '—')}\n"
+        f"Было: {existing['date']} {existing['time']}\n"
+        f"Стало: {new_date} {new_time}\n"
+        f"Услуга: {existing.get('service_name') or '—'}",
+        phone=existing.get("phone"),
+    ))
+    asyncio.create_task(_notify_admins_text(
+        f"🔁 *Запись перенесена клиентом*\n\n"
+        f"Клиент: {existing.get('client_name', '—')}\n"
+        f"Мастер: {existing['master_name']}\n"
+        f"Было: {existing['date']} {existing['time']}\n"
+        f"Стало: {new_date} {new_time}",
+    ))
     return {"status": "ok", "date": new_date, "time": new_time}
 
 
@@ -1659,7 +1695,8 @@ async def create_booking(b: BookingCreate):
         f"Телефон: {b.phone or '—'}\n"
         f"Дата: {b.date}\n"
         f"Время: {b.time}{end_note}\n"
-        f"Услуга: {service_name or b.service_name or '—'}"
+        f"Услуга: {service_name or b.service_name or '—'}",
+        phone=b.phone,
     ))
     return {"id": booking_id, "promo": promo_note}
 
@@ -1731,6 +1768,41 @@ async def update_booking(booking_id: int, b: BookingUpdate):
             params.append(booking_id)
             await db.execute(f"UPDATE bookings SET {', '.join(fields)} WHERE id = ?", params)
             await db.commit()
+
+            # Уведомляем мастеров об изменении записи
+            import db as db_module
+            phone = existing.get("phone")
+            client = existing.get("client_name") or "—"
+            end_note = ""
+            if new_dur > 15:
+                end_note = f" – {db_module.end_time_for_booking(new_time, new_dur)} ({db_module.format_duration(new_dur)})"
+            asyncio.create_task(_notify_master(new_master,
+                f"✏️ *Запись изменена!*\n\n"
+                f"Клиент: {b.client_name or client}\n"
+                f"Дата: {new_date}\n"
+                f"Время: {new_time}{end_note}\n"
+                f"Услуга: {new_service or '—'}",
+                phone=phone,
+            ))
+            if new_master != existing["master_name"]:
+                asyncio.create_task(_notify_master(existing["master_name"],
+                    f"❌ *Запись отменена*\n\n"
+                    f"Запись передана другому мастеру.\n"
+                    f"Клиент: {client}\n"
+                    f"Дата: {existing['date']}\n"
+                    f"Время: {existing['time']}",
+                    phone=phone,
+                ))
+            master_line = new_master
+            if new_master != existing["master_name"]:
+                master_line = f"{existing['master_name']} → {new_master}"
+            asyncio.create_task(_notify_admins_text(
+                f"✏️ *Запись изменена в CRM*\n\n"
+                f"Клиент: {client}\n"
+                f"Мастер: {master_line}\n"
+                f"Было: {existing['date']} {existing['time']}\n"
+                f"Стало: {new_date} {new_time}",
+            ))
         return {"status": "ok"}
 
 @app.delete("/api/bookings/{booking_id}")
@@ -1771,7 +1843,8 @@ async def confirm_booking(booking_id: int):
         f"✅ *Запись подтверждена*\n\n"
         f"Клиент: {booking.get('client_name', '—')}\n"
         f"Дата: {booking['date']}\n"
-        f"Время: {time_line}"
+        f"Время: {time_line}",
+        phone=booking.get("phone"),
     ))
     return {"status": "ok"}
 
@@ -1805,7 +1878,8 @@ async def cancel_booking(booking_id: int):
         f"❌ *Запись отменена*\n\n"
         f"Клиент: {booking.get('client_name', '—')}\n"
         f"Дата: {booking['date']}\n"
-        f"Время: {time_line}"
+        f"Время: {time_line}",
+        phone=booking.get("phone"),
     ))
     # Освободившееся окно → лист ожидания (Telegram)
     try:

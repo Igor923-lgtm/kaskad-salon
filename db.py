@@ -483,6 +483,44 @@ async def get_master_by_id(master_id: int) -> dict | None:
         return dict(row) if row else None
 
 
+async def resolve_master_tg(master_name: str, phone: str | None = None) -> int | None:
+    """telegram_id мастера для уведомлений.
+
+    Ищет masters.telegram_id по имени; если не привязан — fallback по телефону
+    через clients.phone (варианты с и без +) с автопривязкой результата в masters.
+    """
+    if not master_name:
+        return None
+    async with aiosqlite.connect(config.DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT id, phone, telegram_id FROM masters WHERE name = ?", (master_name,)
+        )
+        m = await cur.fetchone()
+        if not m:
+            return None
+        tg = m["telegram_id"] or 0
+        if tg > 0:
+            return tg
+
+        master_phone = phone or m["phone"] or ""
+        if not master_phone:
+            return None
+        phone_no_plus = master_phone.lstrip("+")
+        cur = await db.execute(
+            "SELECT telegram_id FROM clients WHERE phone IN (?, ?) AND telegram_id > 0 LIMIT 1",
+            (master_phone, phone_no_plus),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+        tg = row["telegram_id"]
+        await db.execute("UPDATE masters SET telegram_id = ? WHERE id = ?", (tg, m["id"]))
+        await db.commit()
+        log.info(f"resolve_master_tg: linked telegram_id={tg} to master '{master_name}'")
+        return tg
+
+
 async def get_masters_by_category(category_idx: int, org_type: str | None = None) -> list:
     """Вернуть мастеров, которые работают в указанной категории (индекс раздела прайса)."""
     all_masters = await get_masters(org_type=org_type)
