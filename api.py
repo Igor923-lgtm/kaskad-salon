@@ -135,6 +135,9 @@ def _is_public(path: str, method: str = "GET") -> bool:
     # Вход в ЦРМ: POST /login (rate-limit в middleware до этой проверки)
     if path == "/login" and method == "POST":
         return True
+    # Self-service setup: одноразовая ссылка активации (handler валидирует HMAC token)
+    if path == "/setup" and method in ("GET", "POST"):
+        return True
     # Self-service manage-booking: handler валидирует HMAC token в query
     if path == "/manage-booking" and method == "GET":
         return True
@@ -213,8 +216,7 @@ async def page_login(request: Request, error: str = ""):
 async def do_login(request: Request):
     form = await request.form()
     password = form.get("password", "")
-    # Fail-closed: без заданного CRM_PASSWORD вход закрыт (и пустой пароль ≠ вход).
-    if password and config.CRM_PASSWORD and password == config.CRM_PASSWORD:
+    if await _password_valid(password):
         response = RedirectResponse(url="/dashboard", status_code=302)
         response.set_cookie(COOKIE_NAME, CRM_TOKEN, **_cookie_kwargs())
         # Подчистить старое общее имя, чтобы не конфликтовало на другом порту
@@ -222,6 +224,87 @@ async def do_login(request: Request):
         return response
     ctx = await _template_context(request, error="Неверный пароль")
     return templates.TemplateResponse(request, "login.html", ctx)
+
+
+async def _password_valid(password: str) -> bool:
+    """Fail-closed: без пароля вход закрыт. Пароль, заданный через /setup (хэш в БД),
+    приоритетнее общего пароля из .env."""
+    if not password:
+        return False
+    import db as db_module
+    stored = await db_module.get_setting("CRM_PASSWORD_HASH")
+    if stored:
+        return hmac.compare_digest(_make_token(password), stored)
+    return bool(config.CRM_PASSWORD) and password == config.CRM_PASSWORD
+
+
+def _make_setup_token(exp: int) -> str:
+    """Одноразовая ссылка активации: {exp}.{HMAC(CRM_SECRET, setup:{salon_id}:{exp})}."""
+    msg = f"setup:{config.SALON_ID}:{exp}".encode()
+    sig = hmac.new(CRM_SECRET.encode(), msg, hashlib.sha256).hexdigest()[:32]
+    return f"{exp}.{sig}"
+
+
+async def _setup_token_usable(token: str) -> bool:
+    """Токен валиден: подпись совпала, не просрочен, ещё не использован."""
+    if not token or "." not in token:
+        return False
+    exp_s, sig = token.rsplit(".", 1)
+    try:
+        exp = int(exp_s)
+    except ValueError:
+        return False
+    if exp < int(datetime.now().timestamp()):
+        return False
+    expected = hmac.new(
+        CRM_SECRET.encode(),
+        f"setup:{config.SALON_ID}:{exp}".encode(),
+        hashlib.sha256,
+    ).hexdigest()[:32]
+    if not hmac.compare_digest(expected, sig):
+        return False
+    import db as db_module
+    return await db_module.get_setting("SETUP_CONSUMED") != token
+
+
+@app.get("/setup", response_class=HTMLResponse)
+async def page_setup(request: Request, token: str = Query(""), error: str = ""):
+    """Self-service: клиент задаёт свой пароль по одноразовой ссылке от provisioner."""
+    link_ok = await _setup_token_usable(token)
+    if not link_ok and not error:
+        error = "Ссылка недействительна или устарела"
+    ctx = await _template_context(request, error=error, token=token, link_ok=link_ok)
+    r = templates.TemplateResponse(request, "setup.html", ctx)
+    _no_cache(r)
+    return r
+
+
+@app.post("/setup")
+async def do_setup(request: Request):
+    form = await request.form()
+    token = str(form.get("token", ""))
+    password = str(form.get("password", ""))
+    confirm = str(form.get("confirm", ""))
+
+    if not await _setup_token_usable(token):
+        ctx = await _template_context(
+            request, error="Ссылка недействительна или уже использована",
+            token=token, link_ok=False)
+        return templates.TemplateResponse(request, "setup.html", ctx, status_code=403)
+    if len(password) < 6:
+        ctx = await _template_context(
+            request, error="Пароль должен быть не короче 6 символов",
+            token=token, link_ok=True)
+        return templates.TemplateResponse(request, "setup.html", ctx)
+    if password != confirm:
+        ctx = await _template_context(
+            request, error="Пароли не совпадают", token=token, link_ok=True)
+        return templates.TemplateResponse(request, "setup.html", ctx)
+
+    import db as db_module
+    await db_module.set_setting("CRM_PASSWORD_HASH", _make_token(password))
+    await db_module.set_setting("SETUP_CONSUMED", token)
+    return RedirectResponse(url="/login", status_code=302)
 
 
 @app.get("/logout")
