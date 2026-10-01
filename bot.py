@@ -24,6 +24,12 @@ import price_data
 import aiosqlite
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+# basicConfig уже создал root-хендлеры — второй НЕ добавляем (задвоение вывода),
+# только меняем formatter: записи без extra печатаются ровно как раньше.
+from logfmt import StructuredFormatter, log_event  # noqa: E402
+
+for _handler in logging.getLogger().handlers:
+    _handler.setFormatter(StructuredFormatter())
 log = logging.getLogger(__name__)
 
 # Bot API хранит allowed_updates между вызовами getUpdates ("If not specified,
@@ -1504,7 +1510,10 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             service_name=booking.get("service_name", ""),
         )
         booking_id = 1 if count else None  # truthy для общего path
-        log.info(f"BOOK: range saved, slots={count}")
+        if count:
+            log_event(log, logging.INFO, "booking_created", slots=count,
+                      date=booking.get("date"), master=master_name,
+                      start=booking.get("start_time"), end=booking.get("end_time"))
         range_slots = count
     else:
         booking_id = await db.try_book_slot(
@@ -1517,7 +1526,10 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             duration_minutes=booking.get("duration_minutes") or 0,
         )
         range_slots = db.slots_needed(booking.get("duration_minutes") or 0) if booking_id else 0
-        log.info(f"BOOK: booking saved, booking_id={booking_id}")
+        if booking_id:
+            log_event(log, logging.INFO, "booking_created", booking_id=booking_id,
+                      date=booking.get("date"), time=booking.get("time"),
+                      master=master_name, edit=bool(is_edit))
         # multi-service join rows
         if booking_id and booking.get("service_ids"):
             ids = booking.get("service_ids") or []
@@ -1642,7 +1654,8 @@ async def _create_booking(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             else:
                 log.warning(f"BOOK: мастер '{master_name}' без telegram_id — уведомление не отправлено")
         except Exception as e:
-            log.warning(f"BOOK: не удалось уведомить мастера {master_name}: {e}")
+            log_event(log, logging.WARNING, "tg_send_failed",
+                      master=master_name, error=str(e))
 
         if is_edit and old_master_name and old_master_name != master_name:
             try:

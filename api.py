@@ -22,8 +22,16 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel, field_validator
 
 import config
+from logfmt import StructuredFormatter, log_event
 
 log = logging.getLogger(__name__)
+# Один handler ТОЛЬКО на логгере модуля api (root не трогаем — uvicorn-логи
+# живут на своих логгерах, двойного вывода нет, caplog pytest видит записи).
+if not any(isinstance(getattr(h, "formatter", None), StructuredFormatter) for h in log.handlers):
+    _log_handler = logging.StreamHandler()
+    _log_handler.setFormatter(StructuredFormatter())
+    log.addHandler(_log_handler)
+log.setLevel(logging.INFO)
 
 
 def _resize_image(data: bytes, max_side: int, *, jpeg_quality: int = 85) -> tuple[bytes, str]:
@@ -167,6 +175,7 @@ async def auth_middleware(request: Request, call_next):
             _login_attempts[ip] = []
         _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < 60]
         if len(_login_attempts[ip]) >= 5:
+            log_event(log, logging.WARNING, "login_rate_limited", ip=ip)
             # HTML-форма логина: редирект с текстом, не JSON
             if path == "/login":
                 msg = quote("Слишком много попыток. Подождите минуту и попробуйте снова.")
@@ -199,10 +208,10 @@ async def auth_middleware(request: Request, call_next):
             pass
     # Для API — 401 (без полного query в логе: token не пишем)
     if path.startswith("/api/"):
-        log.warning(f"AUTH 401: path={path} method={method}")
+        log_event(log, logging.WARNING, "auth_401", path=path, method=method)
         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
     # Для страниц — редирект на логин
-    log.warning(f"AUTH REDIRECT: path={path} method={method}")
+    log_event(log, logging.WARNING, "auth_redirect", path=path, method=method)
     return RedirectResponse(url="/login", status_code=302)
 
 
@@ -216,12 +225,15 @@ async def page_login(request: Request, error: str = ""):
 async def do_login(request: Request):
     form = await request.form()
     password = form.get("password", "")
+    ip = request.client.host if request.client else "unknown"
     if await _password_valid(password):
+        log_event(log, logging.INFO, "login_ok", ip=ip)
         response = RedirectResponse(url="/dashboard", status_code=302)
         response.set_cookie(COOKIE_NAME, CRM_TOKEN, **_cookie_kwargs())
         # Подчистить старое общее имя, чтобы не конфликтовало на другом порту
         response.delete_cookie(LEGACY_COOKIE, path="/")
         return response
+    log_event(log, logging.WARNING, "login_fail", ip=ip)
     ctx = await _template_context(request, error="Неверный пароль")
     return templates.TemplateResponse(request, "login.html", ctx)
 
@@ -248,13 +260,16 @@ def _make_setup_token(exp: int) -> str:
 async def _setup_token_usable(token: str) -> bool:
     """Токен валиден: подпись совпала, не просрочен, ещё не использован."""
     if not token or "." not in token:
+        log_event(log, logging.WARNING, "setup_link_rejected", reason="malformed")
         return False
     exp_s, sig = token.rsplit(".", 1)
     try:
         exp = int(exp_s)
     except ValueError:
+        log_event(log, logging.WARNING, "setup_link_rejected", reason="malformed")
         return False
     if exp < int(datetime.now().timestamp()):
+        log_event(log, logging.WARNING, "setup_link_rejected", reason="expired")
         return False
     expected = hmac.new(
         CRM_SECRET.encode(),
@@ -262,9 +277,13 @@ async def _setup_token_usable(token: str) -> bool:
         hashlib.sha256,
     ).hexdigest()[:32]
     if not hmac.compare_digest(expected, sig):
+        log_event(log, logging.WARNING, "setup_link_rejected", reason="bad_signature")
         return False
     import db as db_module
-    return await db_module.get_setting("SETUP_CONSUMED") != token
+    if await db_module.get_setting("SETUP_CONSUMED") == token:
+        log_event(log, logging.WARNING, "setup_link_rejected", reason="already_used")
+        return False
+    return True
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -304,6 +323,7 @@ async def do_setup(request: Request):
     import db as db_module
     await db_module.set_setting("CRM_PASSWORD_HASH", _make_token(password))
     await db_module.set_setting("SETUP_CONSUMED", token)
+    log_event(log, logging.INFO, "setup_password_set")
     return RedirectResponse(url="/login", status_code=302)
 
 
@@ -553,7 +573,7 @@ async def _notify_admin(booking, booking_id: int):
                     json={"chat_id": admin_id, "text": text, "parse_mode": "Markdown"},
                 )
     except Exception as e:
-        log.warning(f"Не удалось отправить уведомление админу: {e}")
+        log_event(log, logging.WARNING, "tg_send_failed", target="admin", error=str(e))
 
 
 async def _get_admin_ids() -> list[int]:
@@ -578,7 +598,7 @@ async def _notify_admins_text(text: str):
         for admin_id in await _get_admin_ids():
             await _send_tg(admin_id, text)
     except Exception as e:
-        log.warning(f"Не удалось отправить уведомление админам: {e}")
+        log_event(log, logging.WARNING, "tg_send_failed", target="admins", error=str(e))
 
 async def _send_tg(chat_id: int, text: str):
     """Отправить сообщение клиенту через Telegram Bot API."""
@@ -591,7 +611,7 @@ async def _send_tg(chat_id: int, text: str):
                 timeout=10,
             )
     except Exception as e:
-        log.warning(f"Не удалось отправить сообщение в TG {chat_id}: {e}")
+        log_event(log, logging.WARNING, "tg_send_failed", chat_id=chat_id, error=str(e))
 
 async def _notify_master(master_name: str, text: str, phone: str | None = None):
     """Отправить уведомление мастеру в Telegram."""
@@ -610,7 +630,7 @@ async def _notify_master(master_name: str, text: str, phone: str | None = None):
             )
             log.info(f"Уведомление мастеру {master_name} (tg={tg_id}) отправлено")
     except Exception as e:
-        log.warning(f"Не удалось отправить уведомление мастеру {master_name}: {e}")
+        log_event(log, logging.WARNING, "tg_send_failed", master=master_name, error=str(e))
 
 
 async def _tg_send(chat_id: int, text: str):
@@ -626,7 +646,7 @@ async def _tg_send(chat_id: int, text: str):
                 timeout=10,
             )
     except Exception as e:
-        log.warning(f"waitlist TG send failed chat={chat_id}: {e}")
+        log_event(log, logging.WARNING, "tg_send_failed", chat_id=chat_id, error=str(e))
 
 # ── HTML-страницы (с cache-busting) ─────────────────────
 
@@ -830,6 +850,9 @@ async def manage_booking_cancel(booking_id: int, token: str = Query(...)):
             pass
         import db as db_module
         await db_module.cancel_booking(booking_id)
+        log_event(log, logging.INFO, "booking_cancelled", booking_id=booking_id,
+                  date=booking.get("date"), time=booking.get("time"),
+                  master=booking.get("master_name"), source="client")
         matches = await db_module.notify_waitlist_for_slot(
             booking.get("master_name", ""), booking.get("date", ""), booking.get("time", ""),
         )
@@ -888,6 +911,10 @@ async def manage_booking_reschedule(booking_id: int, token: str = Query(...), re
             (new_date, new_time, booking_id),
         )
         await db.commit()
+
+    log_event(log, logging.INFO, "booking_rescheduled", booking_id=booking_id,
+              date=new_date, time=new_time, master=existing["master_name"],
+              old_date=existing["date"], old_time=existing["time"], source="client")
 
     # Уведомления о переносе: мастеру и админам
     asyncio.create_task(_notify_master(
@@ -1785,6 +1812,8 @@ async def create_booking(b: BookingCreate):
         f"Услуга: {service_name or b.service_name or '—'}",
         phone=b.phone,
     ))
+    log_event(log, logging.INFO, "booking_created", booking_id=booking_id,
+              date=b.date, time=b.time, master=b.master_name)
     return {"id": booking_id, "promo": promo_note}
 
 @app.put("/api/bookings/{booking_id}")
@@ -1955,6 +1984,10 @@ async def cancel_booking(booking_id: int):
         await db.execute(f"DELETE FROM bookings WHERE id IN ({marks})", tuple(ids))
         await db.execute(f"DELETE FROM booking_services WHERE booking_id IN ({marks})", tuple(ids))
         await db.commit()
+
+    log_event(log, logging.INFO, "booking_cancelled", booking_id=booking_id,
+              date=booking["date"], time=booking["time"],
+              master=booking["master_name"], source="crm")
 
     if len(times) <= 1:
         time_line = times[0] if times else booking["time"]

@@ -26,7 +26,7 @@ PORT_RANGE = range(8000, 8101)
 ID_RE = re.compile(r"^[a-z][a-z0-9_]{1,30}$")
 # Корневые .py, без которых приложение не работает (whitelist: остальные
 # вспомогательные скрипты репо тенанту не нужны)
-RUNTIME_FILES = ("api.py", "bot.py", "db.py", "config.py", "price_data.py")
+RUNTIME_FILES = ("api.py", "bot.py", "db.py", "config.py", "price_data.py", "logfmt.py")
 
 
 # ── Чистые функции (используются в тестах) ──────────────────────────────────
